@@ -11,6 +11,9 @@ jspm_packages
 # production
 /build
 
+# temporary directories
+/tmp
+
 # misc
 .DS_Store
 .env.local
@@ -30,6 +33,7 @@ yarn-error.log*
 
 # build
 .webpack
+.build
 
 # vim settings
 .rootdir

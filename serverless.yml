@@ -34,17 +34,32 @@ provider:
     GRAASP_FILES_HOST: ${file(./env.${self:provider.stage}.json):GRAASP_FILES_HOST}
     S3_BUCKET: ${file(./env.${self:provider.stage}.json):S3_BUCKET}
     S3_HOST: ${file(./env.${self:provider.stage}.json):S3_HOST}
-    AWS_ACCESS_KEY_ID: ${file(./env.${self:provider.stage}.json):AWS_ACCESS_KEY_ID}
-    AWS_SECRET_ACCESS_KEY: ${file(./env.${self:provider.stage}.json):AWS_SECRET_ACCESS_KEY}
     CI_BRANCH: ${env:CI_BRANCH}
     CI_COMMIT_ID: ${env:CI_COMMIT_ID}
+    ACCOUNT_ID: ${file(./env.${self:provider.stage}.json):ACCOUNT_ID}
+    REGION: ${file(./env.${self:provider.stage}.json):REGION}
+    CHROME_PATH: ${file(./env.${self:provider.stage}.json):CHROME_PATH}
 
-# you can overwrite defaults here
-#  stage: dev
-#  region: us-east-1
+  # you can overwrite defaults here
+  #  stage: dev
+  #  region: us-east-1
 
-# you can add statements to the Lambda function's IAM Role here
-#  iamRoleStatements:
+  # you can add statements to the Lambda function's IAM Role here
+  iamRoleStatements:
+    - Effect: 'Allow'
+      Resource: '*'
+      Action:
+        - 'sns:*'
+    - Effect: 'Allow'
+      Action:
+        - 's3:PutObject'
+        - 's3:ListBucket'
+        - 's3:GetObject'
+      Resource:
+        Fn::Join:
+          - ''
+          - - arn:aws:s3:::${self:provider.environment.S3_BUCKET}
+            - '/*'
 #    - Effect: "Allow"
 #      Action:
 #        - "s3:ListBucket"
@@ -71,22 +86,64 @@ provider:
 #  exclude:
 #    - exclude-me.js
 #    - exclude-me-dir/**
+package:
+  include:
+    - dist/**
+  exclude:
+    - node_modules/puppeteer/.local-chromium/**
+    - node_modules/aws-sdk/**
 
 functions:
   getStatus:
-    handler: index.getStatus
+    handler: dist/index.getStatus
     events:
       - http:
           path: /
           method: GET
           cors: true
   getVersion:
-    handler: index.getVersion
+    handler: dist/index.getVersion
     events:
       - http:
           path: /version
           method: GET
           cors: true
+  getExport:
+    handler: dist/index.getExport
+    events:
+      - http:
+          path: /{id}
+          method: GET
+          cors: true
+          request:
+            parameters:
+              paths:
+                id: true
+  postExport:
+    handler: dist/index.postExport
+    events:
+      - http:
+          path: /{id}
+          method: POST
+          cors: true
+          request:
+            parameters:
+              paths:
+                id: true
+  generateExport:
+    handler: dist/index.generateExport
+    memorySize: 1536
+    # todo: five minute timeout for export generation
+    timeout: 30
+    layers:
+      - arn:aws:lambda:${self:provider.environment.REGION}:${self:provider.environment.ACCOUNT_ID}:layer:graasp-service-chrome:2
+    events:
+      - sns: export
+    onError: arn:aws:sns:${self:provider.environment.REGION}:${self:provider.environment.ACCOUNT_ID}:dlq
+  handleError:
+    handler: dist/index.handleError
+    events:
+      - sns: dlq
 
 #    The following are a few example events you can configure
 #    NOTE: Please make sure to change your handler code to work with those events
@@ -135,13 +192,12 @@ functions:
 #       Value: "Some output value"
 
 custom:
-  webpack:
-    webpackConfig: ./webpack.config.js
-    includeModules: true
-    packager: yarn
   serverless-offline:
     port: 6060
+  serverless-offline-sns:
+    port: 4002
+    debug: false
 
 plugins:
+  - serverless-offline-sns
   - serverless-offline
-  - serverless-webpack
