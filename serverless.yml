@@ -27,7 +27,8 @@ provider:
   timeout: 30
 
   environment:
-    PORT: ${file(./env.${self:provider.stage}.json):PORT}
+    API_PORT: ${file(./env.${self:provider.stage}.json):API_PORT}
+    SNS_PORT: ${file(./env.${self:provider.stage}.json):SNS_PORT}
     GRAASP_HOST: ${file(./env.${self:provider.stage}.json):GRAASP_HOST}
     LOGGING_LEVEL: ${file(./env.${self:provider.stage}.json):LOGGING_LEVEL}
     TMP_PATH: ${file(./env.${self:provider.stage}.json):TMP_PATH}
@@ -193,10 +194,10 @@ functions:
 
 custom:
   serverless-offline:
-    port: 6060
+    port: ${self:provider.environment.API_PORT}
   serverless-offline-sns:
-    port: 4002
-    debug: false
+    port: ${self:provider.environment.SNS_PORT}
+    debug: ${self:provider.environment.DEBUG}
 
 plugins:
   - serverless-offline-sns
