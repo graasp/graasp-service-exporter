@@ -11,7 +11,7 @@
 #
 # Happy Coding!
 
-service: graasp-service-export
+service: graasp-service-exporter
 
 # You can pin your service to only deploy with a specific Serverless version
 # Check out our docs for more details
@@ -138,8 +138,7 @@ functions:
     layers:
       - arn:aws:lambda:${self:provider.environment.REGION}:${self:provider.environment.ACCOUNT_ID}:layer:graasp-service-chrome:2
     events:
-      - sns:
-          arn: arn:aws:sns:${self:provider.environment.REGION}:${self:provider.environment.ACCOUNT_ID}:export
+      - sns: export
     onError: arn:aws:sns:${self:provider.environment.REGION}:${self:provider.environment.ACCOUNT_ID}:dlq
   handleError:
     handler: dist/index.handleError
