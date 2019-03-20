@@ -1,5 +1,4 @@
 const {
-  PORT = 9696,
   GRAASP_HOST = 'https://graasp.eu',
   LOGGING_LEVEL = 'info',
   TMP_PATH = './tmp',
@@ -17,7 +16,6 @@ const {
 export {
   S3_BUCKET,
   S3_HOST,
-  PORT,
   GRAASP_HOST,
   LOGGING_LEVEL,
   TMP_PATH,
