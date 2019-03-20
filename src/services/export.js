@@ -3,7 +3,18 @@ import Epub from 'epub-gen';
 import S3 from 'aws-sdk/clients/s3';
 import fs from 'fs';
 import rimraf from 'rimraf';
-import { GRAASP_HOST, S3_BUCKET, S3_PORT, TMP_PATH } from '../config';
+import request from 'request-promise-native';
+import {
+  GRAASP_HOST,
+  S3_BUCKET,
+  S3_PORT,
+  TMP_PATH,
+  AUTH_TYPE_ANONYMOUS,
+  AUTH_TYPE_USERNAME,
+  AUTH_TYPE_PASSWORD,
+  AUTH_TYPE_HOST,
+  TIMEOUT,
+} from '../config';
 import Logger from '../utils/Logger';
 import getChrome from '../utils/getChrome';
 import isLambda from '../utils/isLambda';
@@ -283,7 +294,7 @@ const formatSpace = async (page, format) => {
   }
 };
 
-const scrape = async ({ url, format }) => {
+const scrape = async ({ url, format, loginTypeUrl, username, password }) => {
   Logger.debug('instantiating puppeteer');
   const chrome = await getChrome();
 
@@ -301,11 +312,63 @@ const scrape = async ({ url, format }) => {
     });
 
     Logger.debug('visiting page');
+
+    let auth = AUTH_TYPE_ANONYMOUS;
+    // this endpoint will return a 401 so we catch to find the auth type
+    try {
+      const loginTypeResponse = await request({
+        uri: loginTypeUrl,
+        json: true,
+      });
+      ({ body: { auth } = {} } = loginTypeResponse);
+    } catch (err) {
+      ({ error: { auth } = {} } = err);
+    }
+    console.log(auth);
+
     await page.goto(url, {
       waitUntil: 'networkidle0',
       // one minute timeout
-      timeout: 60000,
+      timeout: TIMEOUT,
     });
+
+    switch (auth) {
+      case AUTH_TYPE_USERNAME:
+        // TODO throw error if no username
+        await page.type('#username', username);
+        await Promise.all([
+          page.waitForNavigation({
+            timeout: TIMEOUT,
+            waitUntil: 'networkidle0',
+          }),
+          page.click('.submit'),
+        ]);
+        break;
+
+      case AUTH_TYPE_PASSWORD:
+        // TODO throw error if no username
+        await page.type('#username', username);
+        await page.type('#password', password);
+        await Promise.all([
+          page.waitForNavigation({
+            timeout: TIMEOUT,
+            waitUntil: 'networkidle0',
+          }),
+          page.click('.submit'),
+        ]);
+
+        break;
+
+      case AUTH_TYPE_ANONYMOUS:
+      default:
+        await Promise.all([
+          page.waitForNavigation({
+            timeout: TIMEOUT,
+            waitUntil: 'networkidle0',
+          }),
+          page.click('.submit'),
+        ]);
+    }
 
     // dismiss cookie banner
     const dismissCookiesMessageButton = 'a.cc-dismiss';
@@ -349,31 +412,14 @@ const convertSpaceToFile = async (id, body, headers) => {
     params.authorization = token;
   }
 
-  // build url from query parameters
-  let url = `${GRAASP_HOST}/ils/${id}/?printPreview`;
-  const validParams = [
-    'lang',
-    'userId',
-    'reviewerId',
-    'reviewerName',
-    'appsOnly',
-    'authorization',
-  ];
-
-  // build url from query parameters
-  Object.keys(params).forEach(key => {
-    const value = params[key];
-    if (validParams.includes(key)) {
-      url += `&${key}`;
-      if (value) {
-        url += `=${encodeURIComponent(value)}`;
-      }
-    }
-  });
-
   // return in pdf format by default
-  const { format = 'pdf' } = body;
-  const page = await scrape({ url, format });
+  const { format = 'pdf', lang = 'en', username, password } = body;
+
+  // build url from query parameters
+  const url = `${GRAASP_HOST}/${lang}/pages/${id}/export`;
+  const loginTypeUrl = `${AUTH_TYPE_HOST}/${id}`;
+
+  const page = await scrape({ url, format, loginTypeUrl, username, password });
   if (!page) {
     const prettyUrl = url.split('?')[0];
     throw Error(`space ${prettyUrl} could not be printed`);

@@ -30,6 +30,7 @@
     "deploy:dev": "serverless deploy --stage dev",
     "deploy:prod": "serverless deploy --stage prod",
     "prettier": "prettier --check 'src/**/*.js'",
+    "prettier:check": "prettier --check 'src/**/*.js'",
     "release": "standard-version --commit-all"
   },
   "dependencies": {
@@ -40,6 +41,8 @@
     "epub-gen": "0.1.0",
     "puppeteer": "1.13.0",
     "raven": "2.6.4",
+    "request": "2.88.0",
+    "request-promise-native": "1.0.7",
     "rimraf": "2.6.3",
     "serverless-sentry-lib": "1.1.2",
     "superagent": "4.1.0",
