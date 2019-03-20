@@ -31,6 +31,7 @@ provider:
     SNS_PORT: ${file(./env.${self:provider.stage}.json):SNS_PORT}
     GRAASP_HOST: ${file(./env.${self:provider.stage}.json):GRAASP_HOST}
     LOGGING_LEVEL: ${file(./env.${self:provider.stage}.json):LOGGING_LEVEL}
+    DEBUG: ${file(./env.${self:provider.stage}.json):DEBUG}
     TMP_PATH: ${file(./env.${self:provider.stage}.json):TMP_PATH}
     GRAASP_FILES_HOST: ${file(./env.${self:provider.stage}.json):GRAASP_FILES_HOST}
     S3_BUCKET: ${file(./env.${self:provider.stage}.json):S3_BUCKET}
@@ -40,6 +41,7 @@ provider:
     ACCOUNT_ID: ${file(./env.${self:provider.stage}.json):ACCOUNT_ID}
     REGION: ${file(./env.${self:provider.stage}.json):REGION}
     CHROME_PATH: ${file(./env.${self:provider.stage}.json):CHROME_PATH}
+    S3_PORT: ${file(./env.${self:provider.stage}.json):S3_PORT}
 
   # you can overwrite defaults here
   #  stage: dev
@@ -192,13 +194,32 @@ functions:
 #       Description: "Description for the output"
 #       Value: "Some output value"
 
+resources:
+  Conditions:
+    isLocal:
+      Fn::Equals:
+        - ${opt:stage}
+        - local
+  Resources:
+    # only create this bucket locally
+    LocalBucket:
+      Type: AWS::S3::Bucket
+      Condition: isLocal
+      Properties:
+        BucketName: ${file(./env.local.json):S3_BUCKET}
+
 custom:
   serverless-offline:
     port: ${self:provider.environment.API_PORT}
   serverless-offline-sns:
     port: ${self:provider.environment.SNS_PORT}
     debug: ${self:provider.environment.DEBUG}
+  s3:
+    host: 0.0.0.0
+    port: ${self:provider.environment.S3_PORT}
+    directory: ${self:provider.environment.TMP_PATH}
 
 plugins:
+  - serverless-s3-local
   - serverless-offline-sns
   - serverless-offline

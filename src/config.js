@@ -1,4 +1,5 @@
 const {
+  S3_PORT,
   GRAASP_HOST = 'https://graasp.eu',
   LOGGING_LEVEL = 'info',
   TMP_PATH = './tmp',
@@ -14,6 +15,7 @@ const {
 } = process.env;
 
 export {
+  S3_PORT,
   S3_BUCKET,
   S3_HOST,
   GRAASP_HOST,
