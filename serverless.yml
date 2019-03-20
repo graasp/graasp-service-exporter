@@ -138,7 +138,8 @@ functions:
     layers:
       - arn:aws:lambda:${self:provider.environment.REGION}:${self:provider.environment.ACCOUNT_ID}:layer:graasp-service-chrome:2
     events:
-      - sns: export
+      - sns:
+          arn: arn:aws:sns:${self:provider.environment.REGION}:${self:provider.environment.ACCOUNT_ID}:export
     onError: arn:aws:sns:${self:provider.environment.REGION}:${self:provider.environment.ACCOUNT_ID}:dlq
   handleError:
     handler: dist/index.handleError
