@@ -12,7 +12,8 @@ jspm_packages
 /build
 
 # temporary directories
-/tmp
+/tmp/*
+!/tmp/README.md
 
 # misc
 .DS_Store
