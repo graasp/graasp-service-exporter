@@ -44,6 +44,8 @@ provider:
     S3_PORT: ${file(./env.${self:provider.stage}.json):S3_PORT}
     DOMAIN_NAME: ${file(./env.${self:provider.stage}.json):DOMAIN_NAME}
     CERTIFICATE_ARN: ${file(./env.${self:provider.stage}.json):CERTIFICATE_ARN}
+    SENTRY_DSN: ${file(./env.${self:provider.stage}.json):SENTRY_DSN}
+    STAGE: ${opt:stage}
 
   # you can overwrite defaults here
   #  stage: dev
@@ -100,21 +102,31 @@ package:
 
 functions:
   getStatus:
-    handler: dist/index.getStatus
+    handler: dist/index.getStatusWithSentry
     events:
       - http:
           path: /
           method: GET
           cors: true
+
   getVersion:
-    handler: dist/index.getVersion
+    handler: dist/index.getVersionWithSentry
     events:
       - http:
           path: /version
           method: GET
           cors: true
+
+  throwError:
+    handler: dist/index.throwErrorWithSentry
+    events:
+      - http:
+          path: /error
+          method: GET
+          cors: true
+
   getExport:
-    handler: dist/index.getExport
+    handler: dist/index.getExportWithSentry
     events:
       - http:
           path: /{id}
@@ -124,8 +136,9 @@ functions:
             parameters:
               paths:
                 id: true
+
   postExport:
-    handler: dist/index.postExport
+    handler: dist/index.postExportWithSentry
     events:
       - http:
           path: /{id}
@@ -135,8 +148,9 @@ functions:
             parameters:
               paths:
                 id: true
+
   generateExport:
-    handler: dist/index.generateExport
+    handler: dist/index.generateExportWithSentry
     memorySize: 1536
     # todo: five minute timeout for export generation
     timeout: 30
@@ -145,8 +159,9 @@ functions:
     events:
       - sns: export-${opt:stage}
     onError: arn:aws:sns:${self:provider.environment.REGION}:${self:provider.environment.ACCOUNT_ID}:dlq-${opt:stage}
+
   handleError:
-    handler: dist/index.handleError
+    handler: dist/index.handleErrorWithSentry
     events:
       - sns: dlq-${opt:stage}
 
@@ -233,7 +248,15 @@ custom:
     # https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-api-endpoint-types.html
     endpointType: 'edge'
 
+  # settings for serverless-sentry
+  sentry:
+    dsn: ${self:provider.environment.SENTRY_DSN}
+    release:
+      # uses the current git commit hash or tag as release identifier
+      version: git
+
 plugins:
+  - serverless-sentry
   - serverless-domain-manager
   - serverless-s3-local
   - serverless-offline-sns

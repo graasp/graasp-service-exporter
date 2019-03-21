@@ -12,6 +12,7 @@ const {
   ACCOUNT_ID = null,
   CHROME_PATH = '/opt/headless_shell',
   LAMBDA_TASK_ROOT,
+  STAGE,
 } = process.env;
 
 export {
@@ -28,8 +29,9 @@ export {
   REGION,
   CHROME_PATH,
   LAMBDA_TASK_ROOT,
+  STAGE,
 };
 
 export const SUPPORTED_FORMATS = ['pdf', 'png', 'epub'];
 export const PENDING_STATUS = 'pending';
-export const EXPORT_TOPIC = 'export';
+export const EXPORT_TOPIC = `export-${STAGE}`;
