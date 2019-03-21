@@ -42,6 +42,8 @@ provider:
     REGION: ${file(./env.${self:provider.stage}.json):REGION}
     CHROME_PATH: ${file(./env.${self:provider.stage}.json):CHROME_PATH}
     S3_PORT: ${file(./env.${self:provider.stage}.json):S3_PORT}
+    DOMAIN_NAME: ${file(./env.${self:provider.stage}.json):DOMAIN_NAME}
+    CERTIFICATE_ARN: ${file(./env.${self:provider.stage}.json):CERTIFICATE_ARN}
 
   # you can overwrite defaults here
   #  stage: dev
@@ -214,12 +216,25 @@ custom:
   serverless-offline-sns:
     port: ${self:provider.environment.SNS_PORT}
     debug: ${self:provider.environment.DEBUG}
+
+  #settings for serverless-s3-local
   s3:
     host: 0.0.0.0
     port: ${self:provider.environment.S3_PORT}
     directory: ${self:provider.environment.TMP_PATH}
 
+  # settings for serverless-domain-manager
+  customDomain:
+    domainName: ${self:provider.environment.DOMAIN_NAME}
+    stage: ${opt:stage}
+    certificateArn: ${self:provider.environment.CERTIFICATE_ARN}
+    createRoute53Record: true
+    # by default api endpoints are of type edge
+    # https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-api-endpoint-types.html
+    endpointType: 'edge'
+
 plugins:
+  - serverless-domain-manager
   - serverless-s3-local
   - serverless-offline-sns
   - serverless-offline
