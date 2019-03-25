@@ -1,6 +1,6 @@
 {
   "name": "graasp-service-exporter",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Service to export PDF, PNG and EPUB versions of learning spaces on Graasp.",
   "main": "src/index.js",
   "author": "Graasp",
