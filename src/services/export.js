@@ -3,11 +3,15 @@ import Epub from 'epub-gen';
 import S3 from 'aws-sdk/clients/s3';
 import fs from 'fs';
 import rimraf from 'rimraf';
-import { GRAASP_HOST, S3_BUCKET, TMP_PATH } from '../config';
+import { GRAASP_HOST, S3_BUCKET, S3_PORT, TMP_PATH } from '../config';
 import Logger from '../utils/Logger';
 import getChrome from '../utils/getChrome';
+import isLambda from '../utils/isLambda';
 
-const s3 = new S3();
+const s3 = new S3({
+  s3ForcePathStyle: isLambda ? undefined : true,
+  endpoint: isLambda ? undefined : `http://localhost:${S3_PORT}`,
+});
 
 const generateRandomString = () =>
   Math.random()

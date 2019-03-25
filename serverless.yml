@@ -31,6 +31,7 @@ provider:
     SNS_PORT: ${file(./env.${self:provider.stage}.json):SNS_PORT}
     GRAASP_HOST: ${file(./env.${self:provider.stage}.json):GRAASP_HOST}
     LOGGING_LEVEL: ${file(./env.${self:provider.stage}.json):LOGGING_LEVEL}
+    DEBUG: ${file(./env.${self:provider.stage}.json):DEBUG}
     TMP_PATH: ${file(./env.${self:provider.stage}.json):TMP_PATH}
     GRAASP_FILES_HOST: ${file(./env.${self:provider.stage}.json):GRAASP_FILES_HOST}
     S3_BUCKET: ${file(./env.${self:provider.stage}.json):S3_BUCKET}
@@ -40,6 +41,11 @@ provider:
     ACCOUNT_ID: ${file(./env.${self:provider.stage}.json):ACCOUNT_ID}
     REGION: ${file(./env.${self:provider.stage}.json):REGION}
     CHROME_PATH: ${file(./env.${self:provider.stage}.json):CHROME_PATH}
+    S3_PORT: ${file(./env.${self:provider.stage}.json):S3_PORT}
+    DOMAIN_NAME: ${file(./env.${self:provider.stage}.json):DOMAIN_NAME}
+    CERTIFICATE_ARN: ${file(./env.${self:provider.stage}.json):CERTIFICATE_ARN}
+    SENTRY_DSN: ${file(./env.${self:provider.stage}.json):SENTRY_DSN}
+    STAGE: ${opt:stage}
 
   # you can overwrite defaults here
   #  stage: dev
@@ -96,21 +102,31 @@ package:
 
 functions:
   getStatus:
-    handler: dist/index.getStatus
+    handler: dist/index.getStatusWithSentry
     events:
       - http:
           path: /
           method: GET
           cors: true
+
   getVersion:
-    handler: dist/index.getVersion
+    handler: dist/index.getVersionWithSentry
     events:
       - http:
           path: /version
           method: GET
           cors: true
+
+  throwError:
+    handler: dist/index.throwErrorWithSentry
+    events:
+      - http:
+          path: /error
+          method: GET
+          cors: true
+
   getExport:
-    handler: dist/index.getExport
+    handler: dist/index.getExportWithSentry
     events:
       - http:
           path: /{id}
@@ -120,8 +136,9 @@ functions:
             parameters:
               paths:
                 id: true
+
   postExport:
-    handler: dist/index.postExport
+    handler: dist/index.postExportWithSentry
     events:
       - http:
           path: /{id}
@@ -131,20 +148,22 @@ functions:
             parameters:
               paths:
                 id: true
+
   generateExport:
-    handler: dist/index.generateExport
+    handler: dist/index.generateExportWithSentry
     memorySize: 1536
     # todo: five minute timeout for export generation
     timeout: 30
     layers:
       - arn:aws:lambda:${self:provider.environment.REGION}:${self:provider.environment.ACCOUNT_ID}:layer:graasp-service-chrome:2
     events:
-      - sns: export
-    onError: arn:aws:sns:${self:provider.environment.REGION}:${self:provider.environment.ACCOUNT_ID}:dlq
+      - sns: export-${opt:stage}
+    onError: arn:aws:sns:${self:provider.environment.REGION}:${self:provider.environment.ACCOUNT_ID}:dlq-${opt:stage}
+
   handleError:
-    handler: dist/index.handleError
+    handler: dist/index.handleErrorWithSentry
     events:
-      - sns: dlq
+      - sns: dlq-${opt:stage}
 
 #    The following are a few example events you can configure
 #    NOTE: Please make sure to change your handler code to work with those events
@@ -192,6 +211,20 @@ functions:
 #       Description: "Description for the output"
 #       Value: "Some output value"
 
+resources:
+  Conditions:
+    isLocal:
+      Fn::Equals:
+        - ${opt:stage}
+        - local
+  Resources:
+    # only create this bucket locally
+    LocalBucket:
+      Type: AWS::S3::Bucket
+      Condition: isLocal
+      Properties:
+        BucketName: ${file(./env.local.json):S3_BUCKET}
+
 custom:
   serverless-offline:
     port: ${self:provider.environment.API_PORT}
@@ -199,6 +232,32 @@ custom:
     port: ${self:provider.environment.SNS_PORT}
     debug: ${self:provider.environment.DEBUG}
 
+  #settings for serverless-s3-local
+  s3:
+    host: 0.0.0.0
+    port: ${self:provider.environment.S3_PORT}
+    directory: ${self:provider.environment.TMP_PATH}
+
+  # settings for serverless-domain-manager
+  customDomain:
+    domainName: ${self:provider.environment.DOMAIN_NAME}
+    stage: ${opt:stage}
+    certificateArn: ${self:provider.environment.CERTIFICATE_ARN}
+    createRoute53Record: true
+    # by default api endpoints are of type edge
+    # https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-api-endpoint-types.html
+    endpointType: 'edge'
+
+  # settings for serverless-sentry
+  sentry:
+    dsn: ${self:provider.environment.SENTRY_DSN}
+    release:
+      # uses the current git commit hash or tag as release identifier
+      version: git
+
 plugins:
+  - serverless-sentry
+  - serverless-domain-manager
+  - serverless-s3-local
   - serverless-offline-sns
   - serverless-offline
