@@ -153,7 +153,7 @@ const replaceElementsWithScreenshots = async (elements, page) => {
 // note: cannot use async/await syntax in this
 // function until the following issue is solved
 // http://bit.ly/2HIyUZQ
-const getBackground = (el, host) => {
+/* const getBackground = (el, host) => {
   const style = el.getAttribute('style');
   const backgroundUrlArray = style.split('"');
   const backgroundUrl =
@@ -165,7 +165,7 @@ const getBackground = (el, host) => {
     return backgroundUrl;
   }
   return null;
-};
+}; */
 
 // note: cannot use async/await syntax in this
 // function until the following issue is solved
@@ -184,26 +184,28 @@ const saveEpub = async page => {
   // get title
   let title = 'Untitled';
   try {
-    const titleSelector = 'div.header-content > span.ils-name-header';
+    const titleSelector = 'div.header > h1';
     await page.waitForSelector(titleSelector, { timeout: 1000 });
     title = await page.$eval(titleSelector, el => el.innerHTML);
   } catch (titleErr) {
     console.error(titleErr);
   }
 
+  // @TODO get author element
   // get author
-  let author = 'Anonymous';
-  try {
+  const author = 'Anonymous';
+  /*   try {
     const authorSelector = 'meta[name=author]';
     await page.waitForSelector(authorSelector, { timeout: 1000 });
     author = await page.$eval(authorSelector, el => el.getAttribute('content'));
   } catch (authorErr) {
     console.error(authorErr);
   }
-
+ */
+  // @TODO get background element
   // get background to use as cover
-  let cover = null;
-  try {
+  const cover = null;
+  /* try {
     cover = await page.$eval(
       'div.background-holder',
       getBackground,
@@ -214,7 +216,7 @@ const saveEpub = async page => {
     }
   } catch (err) {
     console.error(err);
-  }
+  } */
 
   // replace relative images with absolute
   await page.$$eval('img', makeImageSourcesAbsolute, GRAASP_HOST);
@@ -239,24 +241,32 @@ const saveEpub = async page => {
   try {
     // todo: parse title in appropriate language
     introduction.title = 'Introduction';
-    introduction.data = await page.$eval(
-      '.ils-description',
-      el => el.innerHTML
-    );
+    introduction.data = await page.$eval('.description p', el => el.innerHTML);
   } catch (err) {
     console.error(err);
   }
 
   // get body for epub
-  const body = await page.$$eval('div.tab-pane', phases =>
+  // use the export class to differentiate from tools content
+  const body = await page.$$eval('.export > section', phases =>
     phases.map(phase => ({
-      title: phase.getAttribute('phase-title'),
-      data: phase.innerHTML,
+      title: phase.getElementsByClassName('name')[0].innerHTML,
+      data: phase.getElementsByClassName('resources')[0].innerHTML,
     }))
   );
 
+  // get tools for epub
+  const tools = {};
+  try {
+    // todo: parse title in appropriate language
+    tools.title = 'Tools';
+    tools.data = await page.$eval('.tools > section', el => el.innerHTML);
+  } catch (err) {
+    console.error(err);
+  }
+
   // concatenate introduction and body
-  const chapters = [introduction, ...body];
+  const chapters = [introduction, ...body, tools];
 
   const screenshots = [...gadgetScreenshots, ...embedScreenshots];
   // prepare epub
@@ -371,7 +381,7 @@ const scrape = async ({ url, format, loginTypeUrl, username, password }) => {
     }
 
     // dismiss cookie banner
-    const dismissCookiesMessageButton = 'a.cc-dismiss';
+    /* const dismissCookiesMessageButton = 'a.cc-dismiss';
 
     // we do not want to error out just because of the cookie message
     Logger.debug('dismissing cookie banner');
@@ -382,7 +392,7 @@ const scrape = async ({ url, format, loginTypeUrl, username, password }) => {
       await page.click(dismissCookiesMessageButton);
     } catch (err) {
       Logger.info('cookie message present', err);
-    }
+    } */
 
     // wait three more seconds just in case
     await page.waitFor(3000);
