@@ -3,7 +3,18 @@ import Epub from 'epub-gen';
 import S3 from 'aws-sdk/clients/s3';
 import fs from 'fs';
 import rimraf from 'rimraf';
-import { GRAASP_HOST, S3_BUCKET, S3_PORT, TMP_PATH } from '../config';
+import request from 'request-promise-native';
+import {
+  GRAASP_HOST,
+  S3_BUCKET,
+  S3_PORT,
+  TMP_PATH,
+  AUTH_TYPE_ANONYMOUS,
+  AUTH_TYPE_USERNAME,
+  AUTH_TYPE_PASSWORD,
+  AUTH_TYPE_HOST,
+  TIMEOUT,
+} from '../config';
 import Logger from '../utils/Logger';
 import getChrome from '../utils/getChrome';
 import isLambda from '../utils/isLambda';
@@ -142,7 +153,7 @@ const replaceElementsWithScreenshots = async (elements, page) => {
 // note: cannot use async/await syntax in this
 // function until the following issue is solved
 // http://bit.ly/2HIyUZQ
-const getBackground = (el, host) => {
+/* const getBackground = (el, host) => {
   const style = el.getAttribute('style');
   const backgroundUrlArray = style.split('"');
   const backgroundUrl =
@@ -154,7 +165,7 @@ const getBackground = (el, host) => {
     return backgroundUrl;
   }
   return null;
-};
+}; */
 
 // note: cannot use async/await syntax in this
 // function until the following issue is solved
@@ -173,26 +184,28 @@ const saveEpub = async page => {
   // get title
   let title = 'Untitled';
   try {
-    const titleSelector = 'div.header-content > span.ils-name-header';
+    const titleSelector = 'div.header > h1';
     await page.waitForSelector(titleSelector, { timeout: 1000 });
     title = await page.$eval(titleSelector, el => el.innerHTML);
   } catch (titleErr) {
     console.error(titleErr);
   }
 
+  // @TODO get author element
   // get author
-  let author = 'Anonymous';
-  try {
+  const author = 'Anonymous';
+  /*   try {
     const authorSelector = 'meta[name=author]';
     await page.waitForSelector(authorSelector, { timeout: 1000 });
     author = await page.$eval(authorSelector, el => el.getAttribute('content'));
   } catch (authorErr) {
     console.error(authorErr);
   }
-
+ */
+  // @TODO get background element
   // get background to use as cover
-  let cover = null;
-  try {
+  const cover = null;
+  /* try {
     cover = await page.$eval(
       'div.background-holder',
       getBackground,
@@ -203,7 +216,7 @@ const saveEpub = async page => {
     }
   } catch (err) {
     console.error(err);
-  }
+  } */
 
   // replace relative images with absolute
   await page.$$eval('img', makeImageSourcesAbsolute, GRAASP_HOST);
@@ -228,24 +241,32 @@ const saveEpub = async page => {
   try {
     // todo: parse title in appropriate language
     introduction.title = 'Introduction';
-    introduction.data = await page.$eval(
-      '.ils-description',
-      el => el.innerHTML
-    );
+    introduction.data = await page.$eval('.description p', el => el.innerHTML);
   } catch (err) {
     console.error(err);
   }
 
   // get body for epub
-  const body = await page.$$eval('div.tab-pane', phases =>
+  // use the export class to differentiate from tools content
+  const body = await page.$$eval('.export > section', phases =>
     phases.map(phase => ({
-      title: phase.getAttribute('phase-title'),
-      data: phase.innerHTML,
+      title: phase.getElementsByClassName('name')[0].innerHTML,
+      data: phase.getElementsByClassName('resources')[0].innerHTML,
     }))
   );
 
+  // get tools for epub
+  const tools = {};
+  try {
+    // todo: parse title in appropriate language
+    tools.title = 'Tools';
+    tools.data = await page.$eval('.tools > section', el => el.innerHTML);
+  } catch (err) {
+    Logger.error(err);
+  }
+
   // concatenate introduction and body
-  const chapters = [introduction, ...body];
+  const chapters = [introduction, ...body, tools];
 
   const screenshots = [...gadgetScreenshots, ...embedScreenshots];
   // prepare epub
@@ -283,7 +304,17 @@ const formatSpace = async (page, format) => {
   }
 };
 
-const scrape = async ({ url, format }) => {
+const signIn = async page => {
+  return Promise.all([
+    page.waitForNavigation({
+      timeout: TIMEOUT,
+      waitUntil: 'networkidle0',
+    }),
+    page.click('.submit'),
+  ]);
+};
+
+const scrape = async ({ url, format, loginTypeUrl, username, password }) => {
   Logger.debug('instantiating puppeteer');
   const chrome = await getChrome();
 
@@ -301,14 +332,46 @@ const scrape = async ({ url, format }) => {
     });
 
     Logger.debug('visiting page');
+
+    let auth = AUTH_TYPE_ANONYMOUS;
+    // this endpoint will return a 401 so we catch to find the auth type
+    try {
+      const loginTypeResponse = await request({
+        uri: loginTypeUrl,
+        json: true,
+      });
+      ({ body: { auth } = {} } = loginTypeResponse);
+    } catch (err) {
+      ({ error: { auth } = {} } = err);
+    }
+
     await page.goto(url, {
       waitUntil: 'networkidle0',
       // one minute timeout
-      timeout: 60000,
+      timeout: TIMEOUT,
     });
 
+    switch (auth) {
+      case AUTH_TYPE_USERNAME:
+        // TODO throw error if no username
+        await page.type('#username', username);
+        await signIn(page);
+        break;
+
+      case AUTH_TYPE_PASSWORD:
+        // TODO throw error if no username
+        await page.type('#username', username);
+        await page.type('#password', password);
+        await signIn(page);
+        break;
+
+      case AUTH_TYPE_ANONYMOUS:
+      default:
+        await signIn(page);
+    }
+
     // dismiss cookie banner
-    const dismissCookiesMessageButton = 'a.cc-dismiss';
+    /* const dismissCookiesMessageButton = 'a.cc-dismiss';
 
     // we do not want to error out just because of the cookie message
     Logger.debug('dismissing cookie banner');
@@ -319,7 +382,7 @@ const scrape = async ({ url, format }) => {
       await page.click(dismissCookiesMessageButton);
     } catch (err) {
       Logger.info('cookie message present', err);
-    }
+    } */
 
     // wait three more seconds just in case
     await page.waitFor(3000);
@@ -349,31 +412,14 @@ const convertSpaceToFile = async (id, body, headers) => {
     params.authorization = token;
   }
 
-  // build url from query parameters
-  let url = `${GRAASP_HOST}/ils/${id}/?printPreview`;
-  const validParams = [
-    'lang',
-    'userId',
-    'reviewerId',
-    'reviewerName',
-    'appsOnly',
-    'authorization',
-  ];
-
-  // build url from query parameters
-  Object.keys(params).forEach(key => {
-    const value = params[key];
-    if (validParams.includes(key)) {
-      url += `&${key}`;
-      if (value) {
-        url += `=${encodeURIComponent(value)}`;
-      }
-    }
-  });
-
   // return in pdf format by default
-  const { format = 'pdf' } = body;
-  const page = await scrape({ url, format });
+  const { format = 'pdf', lang = 'en', username, password } = body;
+
+  // build url from query parameters
+  const url = `${GRAASP_HOST}/${lang}/pages/${id}/export`;
+  const loginTypeUrl = `${AUTH_TYPE_HOST}/${id}`;
+
+  const page = await scrape({ url, format, loginTypeUrl, username, password });
   if (!page) {
     const prettyUrl = url.split('?')[0];
     throw Error(`space ${prettyUrl} could not be printed`);

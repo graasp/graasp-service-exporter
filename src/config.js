@@ -13,6 +13,7 @@ const {
   CHROME_PATH = '/opt/headless_shell',
   LAMBDA_TASK_ROOT,
   STAGE,
+  AUTH_TYPE_HOST = 'https://light-users.api.graasp.eu/spaces',
 } = process.env;
 
 export {
@@ -30,8 +31,14 @@ export {
   CHROME_PATH,
   LAMBDA_TASK_ROOT,
   STAGE,
+  AUTH_TYPE_HOST,
 };
 
 export const SUPPORTED_FORMATS = ['pdf', 'png', 'epub'];
 export const PENDING_STATUS = 'pending';
 export const EXPORT_TOPIC = `export-${STAGE}`;
+
+export const AUTH_TYPE_ANONYMOUS = 'local-contextual-anonymous';
+export const AUTH_TYPE_USERNAME = 'local-contextual-username';
+export const AUTH_TYPE_PASSWORD = 'local-contextual-username-password';
+export const TIMEOUT = 60000;
