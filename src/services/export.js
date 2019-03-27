@@ -262,7 +262,7 @@ const saveEpub = async page => {
     tools.title = 'Tools';
     tools.data = await page.$eval('.tools > section', el => el.innerHTML);
   } catch (err) {
-    console.error(err);
+    Logger.error(err);
   }
 
   // concatenate introduction and body
@@ -304,6 +304,16 @@ const formatSpace = async (page, format) => {
   }
 };
 
+const signIn = async page => {
+  return Promise.all([
+    page.waitForNavigation({
+      timeout: TIMEOUT,
+      waitUntil: 'networkidle0',
+    }),
+    page.click('.submit'),
+  ]);
+};
+
 const scrape = async ({ url, format, loginTypeUrl, username, password }) => {
   Logger.debug('instantiating puppeteer');
   const chrome = await getChrome();
@@ -334,7 +344,6 @@ const scrape = async ({ url, format, loginTypeUrl, username, password }) => {
     } catch (err) {
       ({ error: { auth } = {} } = err);
     }
-    console.log(auth);
 
     await page.goto(url, {
       waitUntil: 'networkidle0',
@@ -346,38 +355,19 @@ const scrape = async ({ url, format, loginTypeUrl, username, password }) => {
       case AUTH_TYPE_USERNAME:
         // TODO throw error if no username
         await page.type('#username', username);
-        await Promise.all([
-          page.waitForNavigation({
-            timeout: TIMEOUT,
-            waitUntil: 'networkidle0',
-          }),
-          page.click('.submit'),
-        ]);
+        await signIn(page);
         break;
 
       case AUTH_TYPE_PASSWORD:
         // TODO throw error if no username
         await page.type('#username', username);
         await page.type('#password', password);
-        await Promise.all([
-          page.waitForNavigation({
-            timeout: TIMEOUT,
-            waitUntil: 'networkidle0',
-          }),
-          page.click('.submit'),
-        ]);
-
+        await signIn(page);
         break;
 
       case AUTH_TYPE_ANONYMOUS:
       default:
-        await Promise.all([
-          page.waitForNavigation({
-            timeout: TIMEOUT,
-            waitUntil: 'networkidle0',
-          }),
-          page.click('.submit'),
-        ]);
+        await signIn(page);
     }
 
     // dismiss cookie banner
