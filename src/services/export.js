@@ -8,7 +8,7 @@ import {
   GRAASP_HOST,
   S3_BUCKET,
   S3_PORT,
-  TMP_PATH,
+  TMP_FOLDER,
   AUTH_TYPE_ANONYMOUS,
   AUTH_TYPE_USERNAME,
   AUTH_TYPE_PASSWORD,
@@ -48,13 +48,13 @@ const generateEpub = async ({
   // make sure that all content sections have data
   const content = chapters.filter(chapter => chapter.title && chapter.data);
 
-  const output = `${TMP_PATH}/${generateRandomString()}.epub`;
+  const output = `${TMP_FOLDER}/${generateRandomString()}.epub`;
 
   const options = {
     ...main,
     content,
     output,
-    tempDir: TMP_PATH,
+    tempDir: TMP_FOLDER,
   };
 
   // disable this lint because of our epub generation library
@@ -90,8 +90,6 @@ const generateEpub = async ({
 };
 
 const screenshotElements = async (elements, page) => {
-  Logger.debug('capturing screenshots of elements');
-
   const paths = [];
   // using for-of-loop for readability when using await inside a loop
   // where await is needed due to requirement of sequential steps
@@ -115,7 +113,7 @@ const screenshotElements = async (elements, page) => {
       );
     }
     // save screenshot with id as filename
-    const path = `${TMP_PATH}/${id}.png`;
+    const path = `${TMP_FOLDER}/${id}.png`;
     // eslint-disable-next-line no-await-in-loop
     await element.screenshot({ path });
     paths.push(path);
@@ -146,7 +144,25 @@ const replaceElementsWithScreenshots = async (elements, page) => {
   // eslint-disable-next-line no-restricted-syntax
   for (const element of elements) {
     // eslint-disable-next-line no-await-in-loop
-    await page.evaluate(replaceElementWithScreenshot, element, TMP_PATH);
+    await page.evaluate(replaceElementWithScreenshot, element, TMP_FOLDER);
+  }
+};
+
+/* eslint no-param-reassign: ["error", { "props": true, "ignorePropertyModificationsFor": ["el"] }] */
+const adjustElementHeight = el => {
+  const height = el.clientHeight;
+  el.style.height = `${height}px`;
+};
+
+const adjustElementsHeight = async (elements, page) => {
+  Logger.debug('replacing elements height');
+  // using for-of-loop for readability when using await inside a loop
+  // where await is needed due to requirement of sequential steps
+  // check for discussion: http://bit.ly/2JcMMLk
+  // eslint-disable-next-line no-restricted-syntax
+  for (const element of elements) {
+    // eslint-disable-next-line no-await-in-loop
+    await page.evaluate(adjustElementHeight, element);
   }
 };
 
@@ -179,7 +195,18 @@ const makeImageSourcesAbsolute = (imgs, host) => {
   });
 };
 
-const saveEpub = async page => {
+const replaceElements = async (elements, page, interactive) => {
+  let screenshots = [];
+  if (interactive === 'true') {
+    await adjustElementsHeight(elements, page);
+  } else {
+    screenshots = await screenshotElements(elements, page);
+    await replaceElementsWithScreenshots(elements, page);
+  }
+  return screenshots;
+};
+
+const saveEpub = async (page, interactive) => {
   Logger.debug('saving epub');
   // get title
   let title = 'Untitled';
@@ -224,17 +251,15 @@ const saveEpub = async page => {
   // screenshot replacements have to come after image src changes
 
   // replace gadgets
-  const gadgets = await page.$$('div.gadget-content');
-  const gadgetScreenshots = await screenshotElements(gadgets, page);
-  await replaceElementsWithScreenshots(gadgets, page);
+  const gadgets = await page.$$('div.gadget');
+  const gadgetScreenshots = await replaceElements(gadgets, page, interactive);
 
   // remove panels accompanying gadgets
-  await page.$$eval('div.panel', els => els.forEach(el => el.remove()));
+  // await page.$$eval('div.panel', els => els.forEach(el => el.remove()));
 
   // replace embedded html divs, including youtube videos
-  const embeds = await page.$$('div.embedded-html');
-  const embedScreenshots = await screenshotElements(embeds, page);
-  await replaceElementsWithScreenshots(embeds, page);
+  const embeds = await page.$$('.resources object');
+  const embedScreenshots = await replaceElements(embeds, page, interactive);
 
   // get description if present and create introduction
   const introduction = {};
@@ -279,12 +304,12 @@ const saveEpub = async page => {
   });
 };
 
-const formatSpace = async (page, format) => {
+const formatSpace = async (page, format, interactive) => {
   Logger.debug('formatting space');
   switch (format) {
     case 'epub':
       // generate epub
-      return saveEpub(page);
+      return saveEpub(page, interactive);
     case 'png':
       // print screenshot
       return page.screenshot({
@@ -314,7 +339,14 @@ const signIn = async page => {
   ]);
 };
 
-const scrape = async ({ url, format, loginTypeUrl, username, password }) => {
+const scrape = async ({
+  url,
+  format,
+  loginTypeUrl,
+  username,
+  password,
+  interactive,
+}) => {
   Logger.debug('instantiating puppeteer');
   const chrome = await getChrome();
 
@@ -386,7 +418,7 @@ const scrape = async ({ url, format, loginTypeUrl, username, password }) => {
 
     // wait three more seconds just in case
     await page.waitFor(3000);
-    const formattedPage = await formatSpace(page, format);
+    const formattedPage = await formatSpace(page, format, interactive);
     await browser.close();
     setTimeout(() => chrome.instance.kill(), 0);
     return formattedPage;
@@ -413,13 +445,26 @@ const convertSpaceToFile = async (id, body, headers) => {
   }
 
   // return in pdf format by default
-  const { format = 'pdf', lang = 'en', username, password } = body;
+  const {
+    format = 'pdf',
+    lang = 'en',
+    username,
+    password,
+    interactive = false,
+  } = body;
 
   // build url from query parameters
   const url = `${GRAASP_HOST}/${lang}/pages/${id}/export`;
   const loginTypeUrl = `${AUTH_TYPE_HOST}/${id}`;
 
-  const page = await scrape({ url, format, loginTypeUrl, username, password });
+  const page = await scrape({
+    url,
+    format,
+    loginTypeUrl,
+    username,
+    password,
+    interactive,
+  });
   if (!page) {
     const prettyUrl = url.split('?')[0];
     throw Error(`space ${prettyUrl} could not be printed`);
