@@ -154,7 +154,7 @@ const adjustElementHeight = el => {
   el.style.height = `${height}px`;
 };
 
-const adjustElementsHeight = async (elements, page) => {
+const adjustHeightForElements = async (elements, page) => {
   Logger.debug('replacing elements height');
   // using for-of-loop for readability when using await inside a loop
   // where await is needed due to requirement of sequential steps
@@ -193,17 +193,6 @@ const makeImageSourcesAbsolute = (imgs, host) => {
       img.setAttribute('src', host + imgSrc);
     }
   });
-};
-
-const replaceElements = async (elements, page, interactive) => {
-  let screenshots = [];
-  if (interactive === 'true') {
-    await adjustElementsHeight(elements, page);
-  } else {
-    screenshots = await screenshotElements(elements, page);
-    await replaceElementsWithScreenshots(elements, page);
-  }
-  return screenshots;
 };
 
 const saveEpub = async (page, interactive) => {
@@ -252,14 +241,26 @@ const saveEpub = async (page, interactive) => {
 
   // replace gadgets
   const gadgets = await page.$$('div.gadget');
-  const gadgetScreenshots = await replaceElements(gadgets, page, interactive);
+  let gadgetScreenshots = [];
+  if (interactive) {
+    await adjustHeightForElements(gadgets, page);
+  } else {
+    gadgetScreenshots = await screenshotElements(gadgets, page);
+    await replaceElementsWithScreenshots(gadgets, page);
+  }
 
   // remove panels accompanying gadgets
   // await page.$$eval('div.panel', els => els.forEach(el => el.remove()));
 
   // replace embedded html divs, including youtube videos
   const embeds = await page.$$('.resources object');
-  const embedScreenshots = await replaceElements(embeds, page, interactive);
+  let embedScreenshots = [];
+  if (interactive) {
+    await adjustHeightForElements(embeds, page);
+  } else {
+    embedScreenshots = await screenshotElements(embeds, page);
+    await replaceElementsWithScreenshots(embeds, page);
+  }
 
   // get description if present and create introduction
   const introduction = {};
@@ -345,7 +346,7 @@ const scrape = async ({
   loginTypeUrl,
   username,
   password,
-  interactive,
+  interactiveOpt,
 }) => {
   Logger.debug('instantiating puppeteer');
   const chrome = await getChrome();
@@ -418,7 +419,7 @@ const scrape = async ({
 
     // wait three more seconds just in case
     await page.waitFor(3000);
-    const formattedPage = await formatSpace(page, format, interactive);
+    const formattedPage = await formatSpace(page, format, interactiveOpt);
     await browser.close();
     setTimeout(() => chrome.instance.kill(), 0);
     return formattedPage;
@@ -457,13 +458,15 @@ const convertSpaceToFile = async (id, body, headers) => {
   const url = `${GRAASP_HOST}/${lang}/pages/${id}/export`;
   const loginTypeUrl = `${AUTH_TYPE_HOST}/${id}`;
 
+  const interactiveOpt = interactive === 'true';
+
   const page = await scrape({
     url,
     format,
     loginTypeUrl,
     username,
     password,
-    interactive,
+    interactiveOpt,
   });
   if (!page) {
     const prettyUrl = url.split('?')[0];
