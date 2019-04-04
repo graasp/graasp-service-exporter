@@ -1,8 +1,9 @@
+import path from 'path';
+
 const {
   S3_PORT,
-  GRAASP_HOST = 'https://graasp.eu',
+  GRAASP_HOST = 'https://viewer.graasp.eu',
   LOGGING_LEVEL = 'info',
-  TMP_PATH = './tmp',
   GRAASP_FILES_HOST = 'http://localhost:3000',
   S3_BUCKET = null,
   S3_HOST = null,
@@ -13,8 +14,13 @@ const {
   CHROME_PATH = '/opt/headless_shell',
   LAMBDA_TASK_ROOT,
   STAGE,
+  TMP_PATH = './tmp',
   AUTH_TYPE_HOST = 'https://light-users.api.graasp.eu/spaces',
 } = process.env;
+
+const TMP_FOLDER = path.isAbsolute(TMP_PATH)
+  ? TMP_PATH
+  : path.resolve(__dirname, TMP_PATH);
 
 export {
   S3_PORT,
@@ -22,7 +28,7 @@ export {
   S3_HOST,
   GRAASP_HOST,
   LOGGING_LEVEL,
-  TMP_PATH,
+  TMP_FOLDER,
   GRAASP_FILES_HOST,
   CI_BRANCH,
   CI_COMMIT_ID,
