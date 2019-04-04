@@ -243,6 +243,7 @@ const saveEpub = async (page, interactive) => {
   const gadgets = await page.$$('div.gadget');
   let gadgetScreenshots = [];
   if (interactive) {
+    // if the epub is interactive, we need to adjust the height of gadget iframe
     await adjustHeightForElements(gadgets, page);
   } else {
     gadgetScreenshots = await screenshotElements(gadgets, page);
@@ -253,14 +254,20 @@ const saveEpub = async (page, interactive) => {
   // await page.$$eval('div.panel', els => els.forEach(el => el.remove()));
 
   // replace embedded html divs, including youtube videos
-  const embeds = await page.$$('.resources object');
+  const embeds = await page.$$('.resources .embedded-html');
   let embedScreenshots = [];
   if (interactive) {
+    // if the epub is interactive, we need to adjust the height of embed elements
     await adjustHeightForElements(embeds, page);
   } else {
     embedScreenshots = await screenshotElements(embeds, page);
     await replaceElementsWithScreenshots(embeds, page);
   }
+
+  // replace download unspported div with screenshots
+  const unsupported = await page.$$('.resources .unsupported');
+  const unsupportedScreenshots = await screenshotElements(unsupported, page);
+  await replaceElementsWithScreenshots(unsupported, page);
 
   // get description if present and create introduction
   const introduction = {};
@@ -294,7 +301,11 @@ const saveEpub = async (page, interactive) => {
   // concatenate introduction and body
   const chapters = [introduction, ...body, tools];
 
-  const screenshots = [...gadgetScreenshots, ...embedScreenshots];
+  const screenshots = [
+    ...gadgetScreenshots,
+    ...embedScreenshots,
+    ...unsupportedScreenshots,
+  ];
   // prepare epub
   return generateEpub({
     title,
