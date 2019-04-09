@@ -48,3 +48,10 @@ export const AUTH_TYPE_ANONYMOUS = 'local-contextual-anonymous';
 export const AUTH_TYPE_USERNAME = 'local-contextual-username';
 export const AUTH_TYPE_PASSWORD = 'local-contextual-username-password';
 export const TIMEOUT = 60000;
+
+export const COVER_PATH = `${TMP_FOLDER}/cover.jpg`;
+export const COVER_DEFAULT_PATH = 'bg.jpg';
+
+export const BACKGROUND_COLOR = 'white';
+export const FONT = 'Arial';
+export const FONT_COLOR = 'black';
