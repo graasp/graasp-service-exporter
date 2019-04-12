@@ -14,10 +14,13 @@ import {
   AUTH_TYPE_PASSWORD,
   AUTH_TYPE_HOST,
   TIMEOUT,
+  COVER_DEFAULT_PATH,
+  COVER_PATH,
 } from '../config';
 import Logger from '../utils/Logger';
 import getChrome from '../utils/getChrome';
 import isLambda from '../utils/isLambda';
+import coverImage from './cover';
 
 const s3 = new S3({
   s3ForcePathStyle: isLambda ? undefined : true,
@@ -33,16 +36,28 @@ const generateEpub = async ({
   title = 'Untitled',
   author = 'Anonymous',
   chapters = [],
-  cover,
+  background,
   screenshots,
 }) => {
+  // generate cover image
+  // @TODO refactor cover data (date, student name)
+  Logger.debug('Generating cover image');
+  const metadata = {
+    Publisher: 'Graasp',
+    Date: '3/02/39',
+    'Student Name': 'name',
+  };
+  // we wait for the cover image because it loads asynchronously the bakground image file
+  Logger.debug(`---------${background}`);
+  await coverImage(background, title, author, metadata);
+
   Logger.debug('generating epub');
   // main options
   const main = {
     title,
     author,
     publisher: 'Graasp',
-    cover,
+    cover: COVER_PATH,
   };
 
   // make sure that all content sections have data
@@ -82,6 +97,12 @@ const generateEpub = async ({
                 console.error(error);
               }
             });
+          });
+          Logger.debug(`info: deleting temporary cover ${COVER_PATH}`);
+          rimraf(COVER_PATH, error => {
+            if (error) {
+              console.error(error);
+            }
           });
           resolve(rvalue);
         });
@@ -169,19 +190,19 @@ const adjustHeightForElements = async (elements, page) => {
 // note: cannot use async/await syntax in this
 // function until the following issue is solved
 // http://bit.ly/2HIyUZQ
-/* const getBackground = (el, host) => {
-  const style = el.getAttribute('style');
-  const backgroundUrlArray = style.split('"');
-  const backgroundUrl =
-    backgroundUrlArray.length === 3 && backgroundUrlArray[1];
+const getBackground = (el, host) => {
+  const backgroundUrl = el.dataset.backgroundImage;
   if (backgroundUrl) {
-    if (!(backgroundUrl.startsWith('//') || backgroundUrl.startsWith('http'))) {
+    if (backgroundUrl.startsWith('//')) {
+      return `http:${backgroundUrl}`;
+    }
+    if (!backgroundUrl.startsWith('http')) {
       return host + backgroundUrl;
     }
     return backgroundUrl;
   }
   return null;
-}; */
+};
 
 // note: cannot use async/await syntax in this
 // function until the following issue is solved
@@ -220,19 +241,15 @@ const saveEpub = async (page, interactive) => {
  */
   // @TODO get background element
   // get background to use as cover
-  const cover = null;
-  /* try {
-    cover = await page.$eval(
-      'div.background-holder',
-      getBackground,
-      GRAASP_HOST
-    );
-    if (!(cover instanceof String) && typeof cover !== 'string') {
-      cover = null;
+  let background = COVER_DEFAULT_PATH;
+  try {
+    background = await page.$eval('div.header', getBackground, GRAASP_HOST);
+    if (!(background instanceof String) && typeof background !== 'string') {
+      background = null;
     }
   } catch (err) {
     console.error(err);
-  } */
+  }
 
   // replace relative images with absolute
   await page.$$eval('img', makeImageSourcesAbsolute, GRAASP_HOST);
@@ -311,7 +328,7 @@ const saveEpub = async (page, interactive) => {
     title,
     author,
     chapters,
-    cover,
+    background,
     screenshots,
   });
 };

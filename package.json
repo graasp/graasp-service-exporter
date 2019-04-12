@@ -31,13 +31,16 @@
     "deploy:prod": "serverless deploy --stage prod",
     "prettier": "prettier --check 'src/**/*.js'",
     "prettier:check": "prettier --check 'src/**/*.js'",
-    "release": "standard-version --commit-all"
+    "release": "standard-version --commit-all",
+    "hooks:uninstall": "node node_modules/husky/husky.js uninstall",
+    "hooks:install": "node node_modules/husky/husky.js install"
   },
   "dependencies": {
     "@babel/runtime": "7.4.0",
     "@serverless-chrome/lambda": "1.0.0-55",
     "aws-sdk": "2.424.0",
     "bson-objectid": "1.2.4",
+    "canvas": "2.4.1",
     "epub-gen": "https://github.com/graasp/epub-gen",
     "puppeteer": "1.13.0",
     "raven": "2.6.4",
