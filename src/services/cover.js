@@ -53,19 +53,47 @@ const coverImage = async (background, title, author, metadata) => {
 
   // ils metadata
   context.font = `${fontSize}px ${FONT}`;
-  // const mm = {p: "Publisher: Publisher Name",n:"Student name: Name name",d:"Date: 10/02/20"};
   writeMetadata(headerHeight, metadata);
 
   // Image background
-  // @TODO background proportion
-  // @TODO image location
   await loadImage(background).then(image => {
+    let x = 0;
+    let y = 0;
+    let cropScaleX = canvas.width;
+    let cropScaleY = imageHeight;
+
+    // we crop oversized images
+    if (image.height > imageHeight && image.width > canvas.width) {
+      x = image.width / 2 - canvas.width / 2;
+      y = image.height / 2 - imageHeight / 2;
+      cropScaleX = canvas.width;
+      cropScaleY = imageHeight;
+    } else {
+      // If image's aspect ratio is less than canvas's we fit on the longest edge
+      const imageAspectRatio = image.width / image.height;
+      const canvasAspectRatio = canvas.width / imageHeight;
+
+      if (imageAspectRatio < canvasAspectRatio) {
+        cropScaleX = image.width;
+        cropScaleY = imageHeight * (image.width / canvas.width);
+        y = image.height / 2 - cropScaleY / 2;
+      } else if (imageAspectRatio > canvasAspectRatio) {
+        cropScaleY = image.height;
+        cropScaleX = canvas.width * (image.height / imageHeight);
+        x = image.width / 2 - cropScaleX / 2;
+      }
+    }
+
     context.drawImage(
       image,
+      x,
+      y,
+      cropScaleX,
+      cropScaleY,
       0,
-      imageMargin + headerHeight,
+      imageMargin + headerHeight, // position in canvas - y
       canvas.width,
-      imageHeight
+      imageHeight // size from position
     );
     const buf = canvas.toBuffer();
     fs.writeFileSync(COVER_PATH, buf);
