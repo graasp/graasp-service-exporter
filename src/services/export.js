@@ -48,6 +48,7 @@ const generateEpub = async ({
     'Student Name': 'name',
   };
   // we wait for the cover image because it loads asynchronously the bakground image file
+  Logger.debug(`---------${background}`);
   await coverImage(background, title, author, metadata);
 
   Logger.debug('generating epub');
@@ -189,19 +190,19 @@ const adjustHeightForElements = async (elements, page) => {
 // note: cannot use async/await syntax in this
 // function until the following issue is solved
 // http://bit.ly/2HIyUZQ
-/* const getBackground = (el, host) => {
-  const style = el.getAttribute('style');
-  const backgroundUrlArray = style.split('"');
-  const backgroundUrl =
-    backgroundUrlArray.length === 3 && backgroundUrlArray[1];
+const getBackground = (el, host) => {
+  const backgroundUrl = el.dataset.backgroundImage;
   if (backgroundUrl) {
-    if (!(backgroundUrl.startsWith('//') || backgroundUrl.startsWith('http'))) {
+    if (backgroundUrl.startsWith('//')) {
+      return `http:${backgroundUrl}`;
+    }
+    if (!backgroundUrl.startsWith('http')) {
       return host + backgroundUrl;
     }
     return backgroundUrl;
   }
   return null;
-}; */
+};
 
 // note: cannot use async/await syntax in this
 // function until the following issue is solved
@@ -240,19 +241,15 @@ const saveEpub = async (page, interactive) => {
  */
   // @TODO get background element
   // get background to use as cover
-  const background = COVER_DEFAULT_PATH;
-  /* try {
-    cover = await page.$eval(
-      'div.background-holder',
-      getBackground,
-      GRAASP_HOST
-    );
-    if (!(cover instanceof String) && typeof cover !== 'string') {
-      cover = null;
+  let background = COVER_DEFAULT_PATH;
+  try {
+    background = await page.$eval('div.header', getBackground, GRAASP_HOST);
+    if (!(background instanceof String) && typeof background !== 'string') {
+      background = null;
     }
   } catch (err) {
     console.error(err);
-  } */
+  }
 
   // replace relative images with absolute
   await page.$$eval('img', makeImageSourcesAbsolute, GRAASP_HOST);
