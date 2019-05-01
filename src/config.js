@@ -50,7 +50,8 @@ export const AUTH_TYPE_PASSWORD = 'local-contextual-username-password';
 export const TIMEOUT = 60000;
 
 export const COVER_PATH = `${TMP_FOLDER}/cover.jpg`;
-export const COVER_DEFAULT_PATH = 'bg.jpg';
+export const COVER_DEFAULT_PATH =
+  'https://d28t6ykz01qrod.cloudfront.net/epfl/bg.jpg';
 
 export const BACKGROUND_COLOR = 'white';
 export const FONT = 'Arial';

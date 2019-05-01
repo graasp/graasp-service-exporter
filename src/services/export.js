@@ -245,7 +245,7 @@ const saveEpub = async (page, interactive) => {
   try {
     background = await page.$eval('div.header', getBackground, GRAASP_HOST);
     if (!(background instanceof String) && typeof background !== 'string') {
-      background = null;
+      background = COVER_DEFAULT_PATH;
     }
   } catch (err) {
     console.error(err);
