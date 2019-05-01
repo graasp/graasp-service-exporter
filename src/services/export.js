@@ -194,7 +194,7 @@ const getBackground = (el, host) => {
   const backgroundUrl = el.dataset.backgroundImage;
   if (backgroundUrl) {
     if (backgroundUrl.startsWith('//')) {
-      return `http:${backgroundUrl}`;
+      return `https:${backgroundUrl}`;
     }
     if (!backgroundUrl.startsWith('http')) {
       return host + backgroundUrl;
