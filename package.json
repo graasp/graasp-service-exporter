@@ -42,6 +42,7 @@
     "bson-objectid": "1.2.4",
     "canvas": "2.4.1",
     "epub-gen": "https://github.com/graasp/epub-gen",
+    "html-entities": "1.2.1",
     "puppeteer": "1.13.0",
     "raven": "2.6.4",
     "request": "2.88.0",

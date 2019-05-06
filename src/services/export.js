@@ -4,6 +4,8 @@ import S3 from 'aws-sdk/clients/s3';
 import fs from 'fs';
 import rimraf from 'rimraf';
 import request from 'request-promise-native';
+
+import { XmlEntities } from 'html-entities';
 import {
   GRAASP_HOST,
   S3_BUCKET,
@@ -48,7 +50,7 @@ const generateEpub = async ({
     'Student Name': 'name',
   };
   // we wait for the cover image because it loads asynchronously the bakground image file
-  Logger.debug(`---------${background}`);
+  // Logger.debug(`---------${background}`);
   await coverImage(background, title, author, metadata);
 
   Logger.debug('generating epub');
@@ -169,6 +171,27 @@ const replaceElementsWithScreenshots = async (elements, page) => {
   }
 };
 
+// const replaceElementUrl = (el) => {
+//   // this function runs inside the dom so document will be defined
+//   // eslint-disable-next-line no-undef
+//   const iframe = el.querySelector("iframe");
+//   const ressourceId = el.getAttribute('id');
+//   iframe.src = `http://cloud.graasp.eu/pages/${pageId}/subpages/${subpageId}/resources/${ressourceId}`;
+// };
+
+// const replaceUrlForElements = async (elements, page) => {
+//   Logger.debug('replacing elements url with graasp ressources');
+
+//   // using for-of-loop for readability when using await inside a loop
+//   // where await is needed due to requirement of sequential steps
+//   // check for discussion: http://bit.ly/2JcMMLk
+//   // eslint-disable-next-line no-restricted-syntax
+//   for (const element of elements) {
+//     // eslint-disable-next-line no-await-in-loop
+//     await page.evaluate(replaceElementUrl, element);
+//   }
+// };
+
 /* eslint no-param-reassign: ["error", { "props": true, "ignorePropertyModificationsFor": ["el"] }] */
 const adjustElementHeight = el => {
   const height = el.clientHeight;
@@ -216,6 +239,124 @@ const makeImageSourcesAbsolute = (imgs, host) => {
   });
 };
 
+const makeElementLinkAbsolute = (e, attrName, baseUrl) => {
+  const url = e.getAttribute(attrName);
+  if (url) {
+    // replace link with absolute base url
+    if (url.startsWith('./')) {
+      const newUrl = baseUrl + url.substring(2);
+      e.setAttribute(attrName, newUrl);
+    }
+    // make link url absolute
+    else if (url.startsWith('//')) {
+      const newUrl = `https:${url}`;
+      e.setAttribute(attrName, newUrl);
+    }
+  }
+};
+
+const prepareIframes = async (iframes, attrName, baseUrl, page) => {
+  // using for-of-loop for readability when using await inside a loop
+  // where await is needed due to requirement of sequential steps
+  // check for discussion: http://bit.ly/2JcMMLk
+  // eslint-disable-next-line no-restricted-syntax
+  for (const iframe of iframes) {
+    // make absolute iframe url
+    // eslint-disable-next-line no-await-in-loop
+    await page.evaluate(makeElementLinkAbsolute, iframe, attrName, baseUrl);
+  }
+};
+
+const addIframeSrcdocWithContent = (i, contents) => {
+  const src = i.getAttribute('src');
+  i.setAttribute('srcdoc', contents[src]);
+  i.removeAttribute('src');
+};
+
+const addIframesSrcdocWithContent = async (iframes, contents, page) => {
+  // using for-of-loop for readability when using await inside a loop
+  // where await is needed due to requirement of sequential steps
+  // check for discussion: http://bit.ly/2JcMMLk
+  // eslint-disable-next-line no-restricted-syntax
+  for (const iframe of iframes) {
+    // eslint-disable-next-line no-await-in-loop
+    await page.evaluate(addIframeSrcdocWithContent, iframe, contents);
+  }
+};
+
+const retrieveUrls = async (iframes, page) => {
+  const urls = [];
+
+  // using for-of-loop for readability when using await inside a loop
+  // where await is needed due to requirement of sequential steps
+  // check for discussion: http://bit.ly/2JcMMLk
+  // eslint-disable-next-line no-restricted-syntax
+  for (const iframe of iframes) {
+    // eslint-disable-next-line no-await-in-loop
+    const url = await page.evaluate(i => i.getAttribute('src'), iframe);
+    urls.push(url);
+  }
+  return urls;
+};
+
+const retrieveBaseUrl = b => {
+  let url = b.getAttribute('href');
+  if (url === null) {
+    url = 'https://';
+  } else if (url.startsWith('//')) {
+    url = `https:${url.substring(1)}`;
+  }
+  return url;
+};
+
+const replaceIframeSrcWithSrcdoc = async (elements, page) => {
+  // Here you can use few identifying methods like url(),name(),title()
+  const mainbaseUrl = await page.$eval('base', retrieveBaseUrl);
+  await prepareIframes(elements, 'src', mainbaseUrl, page);
+
+  // wait for iframes to reload
+  await page.waitFor(4000);
+
+  // obtain wanted iframe ids
+  const iframeUrls = await retrieveUrls(elements, page);
+  const urls = [...iframeUrls];
+
+  // collect all useful frames content
+  const iframesSrcdoc = {};
+
+  // encode special characters into xml entities
+  const entities = new XmlEntities();
+
+  // using for-of-loop for readability when using await inside a loop
+  // where await is needed due to requirement of sequential steps
+  // check for discussion: http://bit.ly/2JcMMLk
+  // eslint-disable-next-line no-restricted-syntax
+  for (const frame of page.mainFrame().childFrames()) {
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      const url = await frame.url();
+
+      // process only wanted frames
+      // warning: causes a lot of corner cases, but cannot use ids/frame.name() because
+      // iframes do not have id when loading the page (adding them afterwards do
+      // not seem to affect frame attributes)
+      if (urls.includes(url)) {
+        // eslint-disable-next-line no-await-in-loop
+        let content = await frame.content();
+
+        // xml entities encoding
+        content = entities.encode(content);
+        iframesSrcdoc[url] = content;
+      }
+    } catch (err) {
+      Logger.debug(err);
+    }
+  }
+
+  // replace iframes with corresponding contents
+  await addIframesSrcdocWithContent(elements, iframesSrcdoc, page);
+};
+
 const saveEpub = async (page, interactive) => {
   Logger.debug('saving epub');
   // get title
@@ -238,8 +379,7 @@ const saveEpub = async (page, interactive) => {
   } catch (authorErr) {
     console.error(authorErr);
   }
- */
-  // @TODO get background element
+  */
   // get background to use as cover
   let background = COVER_DEFAULT_PATH;
   try {
@@ -267,9 +407,6 @@ const saveEpub = async (page, interactive) => {
     await replaceElementsWithScreenshots(gadgets, page);
   }
 
-  // remove panels accompanying gadgets
-  // await page.$$eval('div.panel', els => els.forEach(el => el.remove()));
-
   // replace embedded html divs, including youtube videos
   const embeds = await page.$$('.resources .embedded-html');
   let embedScreenshots = [];
@@ -279,6 +416,16 @@ const saveEpub = async (page, interactive) => {
   } else {
     embedScreenshots = await screenshotElements(embeds, page);
     await replaceElementsWithScreenshots(embeds, page);
+  }
+
+  // one file labs
+  const labIframes = await page.$$('app-graasp-app-resource iframe');
+  let labIframesScreenshots = [];
+  if (interactive) {
+    await replaceIframeSrcWithSrcdoc(labIframes, page);
+  } else {
+    labIframesScreenshots = await screenshotElements(labIframes, page);
+    await replaceElementsWithScreenshots(labIframes, page);
   }
 
   // replace download unspported div with screenshots
@@ -298,12 +445,20 @@ const saveEpub = async (page, interactive) => {
 
   // get body for epub
   // use the export class to differentiate from tools content
-  const body = await page.$$eval('.export > section', phases =>
+  let body = await page.$$eval('.export > section', phases =>
     phases.map(phase => ({
       title: phase.getElementsByClassName('name')[0].innerHTML,
       data: phase.getElementsByClassName('resources')[0].innerHTML,
     }))
   );
+
+  if (interactive) {
+    // decode & character because it was previously encoded by setAttribute
+    body = body.map(phase => ({
+      title: phase.title,
+      data: phase.data.replace(/&amp;(?=([1-9]|[a-zA-Z]){1,6};)/g, '&'),
+    }));
+  }
 
   // get tools for epub
   const tools = {};
@@ -322,6 +477,7 @@ const saveEpub = async (page, interactive) => {
     ...gadgetScreenshots,
     ...embedScreenshots,
     ...unsupportedScreenshots,
+    ...labIframesScreenshots,
   ];
   // prepare epub
   return generateEpub({
@@ -427,13 +583,15 @@ const scrape = async ({
         break;
 
       case AUTH_TYPE_ANONYMOUS:
-      default:
         await signIn(page);
+        break;
+
+      default:
     }
 
     // dismiss cookie banner
     /* const dismissCookiesMessageButton = 'a.cc-dismiss';
-
+    
     // we do not want to error out just because of the cookie message
     Logger.debug('dismissing cookie banner');
     try {
