@@ -23,6 +23,19 @@ import Logger from '../utils/Logger';
 import getChrome from '../utils/getChrome';
 import isLambda from '../utils/isLambda';
 import coverImage from './cover';
+import {
+  BASE,
+  EMBEDDED_ELEMENTS,
+  GADGETS,
+  HEADER,
+  ILS_TITLE,
+  IMAGES,
+  INTRODUCTION,
+  ONEFILE_IFRAMES,
+  SUBPAGES,
+  TOOLS,
+  UNSUPPORTED_ELEMENTS,
+} from './selector';
 
 const s3 = new S3({
   s3ForcePathStyle: isLambda ? undefined : true,
@@ -311,7 +324,7 @@ const retrieveBaseUrl = b => {
 
 const replaceIframeSrcWithSrcdoc = async (elements, page) => {
   // Here you can use few identifying methods like url(),name(),title()
-  const mainbaseUrl = await page.$eval('base', retrieveBaseUrl);
+  const mainbaseUrl = await page.$eval(BASE, retrieveBaseUrl);
   await prepareIframes(elements, 'src', mainbaseUrl, page);
 
   // wait for iframes to reload
@@ -362,9 +375,8 @@ const saveEpub = async (page, interactive) => {
   // get title
   let title = 'Untitled';
   try {
-    const titleSelector = 'div.header > h1';
-    await page.waitForSelector(titleSelector, { timeout: 1000 });
-    title = await page.$eval(titleSelector, el => el.innerHTML);
+    await page.waitForSelector(ILS_TITLE, { timeout: 1000 });
+    title = await page.$eval(ILS_TITLE, el => el.innerHTML);
   } catch (titleErr) {
     console.error(titleErr);
   }
@@ -383,7 +395,7 @@ const saveEpub = async (page, interactive) => {
   // get background to use as cover
   let background = COVER_DEFAULT_PATH;
   try {
-    background = await page.$eval('div.header', getBackground, GRAASP_HOST);
+    background = await page.$eval(HEADER, getBackground, GRAASP_HOST);
     if (!(background instanceof String) && typeof background !== 'string') {
       background = COVER_DEFAULT_PATH;
     }
@@ -392,12 +404,12 @@ const saveEpub = async (page, interactive) => {
   }
 
   // replace relative images with absolute
-  await page.$$eval('img', makeImageSourcesAbsolute, GRAASP_HOST);
+  await page.$$eval(IMAGES, makeImageSourcesAbsolute, GRAASP_HOST);
 
   // screenshot replacements have to come after image src changes
 
   // replace gadgets
-  const gadgets = await page.$$('div.gadget');
+  const gadgets = await page.$$(GADGETS);
   let gadgetScreenshots = [];
   if (interactive) {
     // if the epub is interactive, we need to adjust the height of gadget iframe
@@ -408,7 +420,7 @@ const saveEpub = async (page, interactive) => {
   }
 
   // replace embedded html divs, including youtube videos
-  const embeds = await page.$$('.resources .embedded-html');
+  const embeds = await page.$$(EMBEDDED_ELEMENTS);
   let embedScreenshots = [];
   if (interactive) {
     // if the epub is interactive, we need to adjust the height of embed elements
@@ -419,7 +431,7 @@ const saveEpub = async (page, interactive) => {
   }
 
   // one file labs
-  const labIframes = await page.$$('app-graasp-app-resource iframe');
+  const labIframes = await page.$$(ONEFILE_IFRAMES);
   let labIframesScreenshots = [];
   if (interactive) {
     await replaceIframeSrcWithSrcdoc(labIframes, page);
@@ -429,7 +441,7 @@ const saveEpub = async (page, interactive) => {
   }
 
   // replace download unspported div with screenshots
-  const unsupported = await page.$$('.resources .unsupported');
+  const unsupported = await page.$$(UNSUPPORTED_ELEMENTS);
   const unsupportedScreenshots = await screenshotElements(unsupported, page);
   await replaceElementsWithScreenshots(unsupported, page);
 
@@ -438,14 +450,14 @@ const saveEpub = async (page, interactive) => {
   try {
     // todo: parse title in appropriate language
     introduction.title = 'Introduction';
-    introduction.data = await page.$eval('.description p', el => el.innerHTML);
+    introduction.data = await page.$eval(INTRODUCTION, el => el.innerHTML);
   } catch (err) {
     console.error(err);
   }
 
   // get body for epub
   // use the export class to differentiate from tools content
-  let body = await page.$$eval('.export > section', phases =>
+  let body = await page.$$eval(SUBPAGES, phases =>
     phases.map(phase => ({
       title: phase.getElementsByClassName('name')[0].innerHTML,
       data: phase.getElementsByClassName('resources')[0].innerHTML,
@@ -465,7 +477,7 @@ const saveEpub = async (page, interactive) => {
   try {
     // todo: parse title in appropriate language
     tools.title = 'Tools';
-    tools.data = await page.$eval('.tools > section', el => el.innerHTML);
+    tools.data = await page.$eval(TOOLS, el => el.innerHTML);
   } catch (err) {
     Logger.error(err);
   }
