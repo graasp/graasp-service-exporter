@@ -23,6 +23,7 @@ import {
   MODE_OFFLINE,
   MODE_STATIC,
   DEFAULT_LANGUAGE,
+  CSS_STYLES_FILE,
 } from '../config';
 import Logger from '../utils/Logger';
 import getChrome from '../utils/getChrome';
@@ -90,12 +91,16 @@ const generateEpub = async ({
   // make sure that all content sections have data
   const content = chapters.filter(chapter => chapter.title && chapter.data);
 
+  // css styles
+  const styles = fs.readFileSync(CSS_STYLES_FILE);
+
   const output = `${TMP_FOLDER}/${generateRandomString()}.epub`;
 
   const options = {
     ...main,
     content,
     output,
+    css: styles,
     tempDir: TMP_FOLDER,
   };
 
@@ -548,13 +553,22 @@ const saveEpub = async (page, mode, lang) => {
   let body = await page.$$eval(
     SUBPAGES,
     (phases, phaseTitlesSelector, resourcesSelector) =>
-      phases.map(phase => ({
+      phases.map(phase => {
+
+      const content = phase.getElementsByClassName(resourcesSelector)[0].innerHTML;
+
+      let description = phase.getElementsByClassName('description')[0];
+      description = description ? description.innerHTML : '';
+
+      return {
         title: phase.getElementsByClassName(phaseTitlesSelector)[0].innerHTML,
-        data: phase.getElementsByClassName(resourcesSelector)[0].innerHTML,
-      })),
+        data: description + content,
+      }
+      
+    }),
     PHASE_TITLES,
     RESOURCES
-  );
+    );
 
   if (mode === MODE_OFFLINE) {
     // decode & character because it was previously encoded by setAttribute for srcdoc attribute
