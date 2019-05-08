@@ -16,6 +16,7 @@ import {
   TIMEOUT,
   COVER_DEFAULT_PATH,
   COVER_PATH,
+  CSS_STYLES_FILE,
 } from '../config';
 import Logger from '../utils/Logger';
 import getChrome from '../utils/getChrome';
@@ -63,12 +64,16 @@ const generateEpub = async ({
   // make sure that all content sections have data
   const content = chapters.filter(chapter => chapter.title && chapter.data);
 
+  // css styles
+  const styles = fs.readFileSync(CSS_STYLES_FILE);
+
   const output = `${TMP_FOLDER}/${generateRandomString()}.epub`;
 
   const options = {
     ...main,
     content,
     output,
+    css: styles,
     tempDir: TMP_FOLDER,
   };
 
@@ -194,7 +199,7 @@ const getBackground = (el, host) => {
   const backgroundUrl = el.dataset.backgroundImage;
   if (backgroundUrl) {
     if (backgroundUrl.startsWith('//')) {
-      return `http:${backgroundUrl}`;
+      return `https:${backgroundUrl}`;
     }
     if (!backgroundUrl.startsWith('http')) {
       return host + backgroundUrl;
@@ -299,10 +304,17 @@ const saveEpub = async (page, interactive) => {
   // get body for epub
   // use the export class to differentiate from tools content
   const body = await page.$$eval('.export > section', phases =>
-    phases.map(phase => ({
-      title: phase.getElementsByClassName('name')[0].innerHTML,
-      data: phase.getElementsByClassName('resources')[0].innerHTML,
-    }))
+    phases.map(phase => {
+      const content = phase.getElementsByClassName('resources')[0].innerHTML;
+
+      let description = phase.getElementsByClassName('description')[0];
+      description = description ? description.innerHTML : '';
+
+      return {
+        title: phase.getElementsByClassName('name')[0].innerHTML,
+        data: description + content,
+      };
+    })
   );
 
   // get tools for epub

@@ -55,3 +55,5 @@ export const COVER_DEFAULT_PATH = 'bg.jpg';
 export const BACKGROUND_COLOR = 'white';
 export const FONT = 'Arial';
 export const FONT_COLOR = 'black';
+
+export const CSS_STYLES_FILE = path.join(__dirname, 'services/styles.css');
