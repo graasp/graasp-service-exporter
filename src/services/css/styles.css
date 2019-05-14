@@ -1,0 +1,98 @@
+* {
+  font-family: 'arial'; /*should use reader default settings*/
+}
+
+h1 {
+  /*text-transform:capitalize;*/
+}
+
+/*titles*/
+h1 {
+  color: white;
+  background: #5050d2;
+  padding: 5px 30px;
+}
+
+body > div {
+  /*general padding*/
+  padding: 10px 20px;
+}
+
+/* body > div:not(:last-child) {
+    
+    border-bottom:1px solid lightgrey;
+    display:block;
+    padding-bottom: 20px;
+} */
+
+app-subpage-resource img {
+  display: block;
+  margin: auto;
+}
+
+/*ils, phase, img descriptions*/
+.description {
+  font-style: italic;
+  color: darkgrey;
+}
+app-subpage-resource .description p {
+  text-align: center;
+}
+
+.resources .description {
+  /*@TODO gap for image description */
+  margin: 5px;
+  text-align: center;
+}
+
+/*IFRAMES AND OBJECTS*/
+
+iframe {
+  width: 100%;
+}
+
+app-gateway-resource,
+app-gadget-resource {
+  margin: 5px;
+}
+
+object {
+  height: 600px;
+  width: 100%;
+}
+
+/*embedded html - youtube, dailymotion, etc iframes*/
+.embedded-html iframe,
+app-gadget-resource iframe {
+  width: 100%;
+  height: 100%;
+}
+
+/*AUDIO*/
+
+audio {
+  display: block;
+  margin: auto;
+}
+
+/*tools*/
+.tools app-subpage-resource {
+  background: #eeeeee;
+  padding: 10px;
+}
+
+/* override space content padding */
+ng-component app-subpage-content {
+  padding: 30px 0;
+}
+
+/*general margins*/
+/* .export > section > .resources, .tools > section > .resources, .description  {
+    margin:0 30px;
+    display:block;
+} */
+
+/*@TODO separator*/
+/* app-subpage-content:not(.tools) > div:not(.description):not(:last-child) { */
+app-subpage-resource {
+}

@@ -12,7 +12,7 @@
   "license": "MIT",
   "private": true,
   "scripts": {
-    "build": "babel src -d dist && mkdir -p dist/tmp",
+    "build": "babel src -d dist && mkdir -p dist/tmp && mkdir -p dist/services/css && cpy 'src/services/css/styles.css' 'dist/services/css/' ",
     "test": "echo \"warning: no tests specified\" && exit 0",
     "lint": "eslint .",
     "start": "yarn start:local",
@@ -41,6 +41,7 @@
     "aws-sdk": "2.424.0",
     "bson-objectid": "1.2.4",
     "canvas": "2.4.1",
+    "cpy-cli": "2.0.0",
     "epub-gen": "https://github.com/graasp/epub-gen",
     "puppeteer": "1.13.0",
     "raven": "2.6.4",

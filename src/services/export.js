@@ -296,7 +296,7 @@ const saveEpub = async (page, interactive) => {
   try {
     // todo: parse title in appropriate language
     introduction.title = 'Introduction';
-    introduction.data = await page.$eval('.description p', el => el.innerHTML);
+    introduction.data = await page.$eval('.description', el => el.outerHTML);
   } catch (err) {
     console.error(err);
   }
@@ -308,7 +308,7 @@ const saveEpub = async (page, interactive) => {
       const content = phase.getElementsByClassName('resources')[0].innerHTML;
 
       let description = phase.getElementsByClassName('description')[0];
-      description = description ? description.innerHTML : '';
+      description = description ? description.outerHTML : '';
 
       return {
         title: phase.getElementsByClassName('name')[0].innerHTML,
