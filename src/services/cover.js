@@ -3,16 +3,17 @@ import fs from 'fs';
 import Logger from '../utils/Logger';
 import { BACKGROUND_COLOR, FONT, FONT_COLOR, COVER_PATH } from '../config';
 
-const canvas = createCanvas(600, 600);
+const canvas = createCanvas(600, 800);
 const context = canvas.getContext('2d');
-const marginLeft = 10;
+const marginLeft = 50;
+const marginTop = 100;
 
 // general text properties
 const fontSize = 20;
 const lineSpacing = 5;
 
 // title properties
-const titleFontSize = 70;
+const titleFontSize = 60;
 const titleMargin = 10;
 
 // author properties
@@ -20,7 +21,7 @@ const authorFontSize = 20;
 
 // image properties
 const imageMargin = 15;
-const imageHeight = 300;
+const imageHeight = 350;
 
 const writeMetadata = (heightPadding, texts) => {
   Object.entries(texts).forEach(([key, value], index) => {
@@ -43,11 +44,11 @@ const coverImage = async (background, title, author, metadata) => {
   // @TODO ils title too long
   context.font = `${titleFontSize}px ${FONT}`;
   context.fillStyle = FONT_COLOR;
-  context.fillText(title, marginLeft, titleMargin + titleFontSize);
+  context.fillText(title, marginLeft, marginTop + titleMargin + titleFontSize);
 
   // ils author
   const headerHeight =
-    authorFontSize + titleFontSize + 2 * titleMargin + lineSpacing;
+    marginTop + authorFontSize + titleFontSize + 2 * titleMargin + lineSpacing;
   context.font = `${authorFontSize}px ${FONT}`;
   context.fillText(author, marginLeft, headerHeight);
 
