@@ -542,8 +542,13 @@ const saveEpub = async (page, mode, lang) => {
   const introduction = {};
   try {
     // todo: parse title in appropriate language
+<<<<<<< HEAD
     introduction.title = 'Preface';
     introduction.data = await page.$eval(INTRODUCTION, el => el.innerHTML);
+=======
+    introduction.title = 'Introduction';
+    introduction.data = await page.$eval('.description', el => el.outerHTML);
+>>>>>>> feat: add styles.css file, copy this file in dist when building
   } catch (err) {
     console.error('No preface found');
   }
@@ -558,7 +563,7 @@ const saveEpub = async (page, mode, lang) => {
       const content = phase.getElementsByClassName(resourcesSelector)[0].innerHTML;
 
       let description = phase.getElementsByClassName('description')[0];
-      description = description ? description.innerHTML : '';
+      description = description ? description.outerHTML : '';
 
       return {
         title: phase.getElementsByClassName(phaseTitlesSelector)[0].innerHTML,
