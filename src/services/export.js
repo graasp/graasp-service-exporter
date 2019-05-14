@@ -28,10 +28,10 @@ import {
   EMBEDDED_ELEMENTS,
   GADGETS,
   HEADER,
-  ILS_TITLE,
+  SPACE_TITLE,
   IMAGES,
   INTRODUCTION,
-  ONEFILE_IFRAMES,
+  OFFLINE_READY_IFRAME,
   SUBPAGES,
   TOOLS,
   UNSUPPORTED_ELEMENTS,
@@ -252,18 +252,18 @@ const makeImageSourcesAbsolute = (imgs, host) => {
   });
 };
 
-const makeElementLinkAbsolute = (e, attrName, baseUrl) => {
-  const url = e.getAttribute(attrName);
+const makeElementLinkAbsolute = (el, attrName, baseUrl) => {
+  const url = el.getAttribute(attrName);
   if (url) {
     // replace link with absolute base url
     if (url.startsWith('./')) {
       const newUrl = baseUrl + url.substring(2);
-      e.setAttribute(attrName, newUrl);
+      el.setAttribute(attrName, newUrl);
     }
     // make link url absolute
     else if (url.startsWith('//')) {
       const newUrl = `https:${url}`;
-      e.setAttribute(attrName, newUrl);
+      el.setAttribute(attrName, newUrl);
     }
   }
 };
@@ -280,20 +280,20 @@ const prepareIframes = async (iframes, attrName, baseUrl, page) => {
   }
 };
 
-const addIframeSrcdocWithContent = (i, contents) => {
-  const src = i.getAttribute('src');
-  i.setAttribute('srcdoc', contents[src]);
-  i.removeAttribute('src');
+const addSrcdocWithContentToIframe = (iframe, contents) => {
+  const src = iframe.getAttribute('src');
+  iframe.setAttribute('srcdoc', contents[src]);
+  iframe.removeAttribute('src');
 };
 
-const addIframesSrcdocWithContent = async (iframes, contents, page) => {
+const addSrcdocWithContentToIframes = async (iframes, contents, page) => {
   // using for-of-loop for readability when using await inside a loop
   // where await is needed due to requirement of sequential steps
   // check for discussion: http://bit.ly/2JcMMLk
   // eslint-disable-next-line no-restricted-syntax
   for (const iframe of iframes) {
     // eslint-disable-next-line no-await-in-loop
-    await page.evaluate(addIframeSrcdocWithContent, iframe, contents);
+    await page.evaluate(addSrcdocWithContentToIframe, iframe, contents);
   }
 };
 
@@ -312,8 +312,8 @@ const retrieveUrls = async (iframes, page) => {
   return urls;
 };
 
-const retrieveBaseUrl = b => {
-  let url = b.getAttribute('href');
+const retrieveBaseUrl = baseElement => {
+  let url = baseElement.getAttribute('href');
   if (url === null) {
     url = 'https://';
   } else if (url.startsWith('//')) {
@@ -322,10 +322,10 @@ const retrieveBaseUrl = b => {
   return url;
 };
 
-const replaceIframeSrcWithSrcdoc = async (elements, page) => {
+const replaceSrcWithSrcdocInIframe = async (elements, page) => {
   // Here you can use few identifying methods like url(),name(),title()
-  const mainbaseUrl = await page.$eval(BASE, retrieveBaseUrl);
-  await prepareIframes(elements, 'src', mainbaseUrl, page);
+  const mainBaseUrl = await page.$eval(BASE, retrieveBaseUrl);
+  await prepareIframes(elements, 'src', mainBaseUrl, page);
 
   // wait for iframes to reload
   await page.waitFor(4000);
@@ -367,7 +367,7 @@ const replaceIframeSrcWithSrcdoc = async (elements, page) => {
   }
 
   // replace iframes with corresponding contents
-  await addIframesSrcdocWithContent(elements, iframesSrcdoc, page);
+  await addSrcdocWithContentToIframes(elements, iframesSrcdoc, page);
 };
 
 const saveEpub = async (page, interactive) => {
@@ -375,8 +375,8 @@ const saveEpub = async (page, interactive) => {
   // get title
   let title = 'Untitled';
   try {
-    await page.waitForSelector(ILS_TITLE, { timeout: 1000 });
-    title = await page.$eval(ILS_TITLE, el => el.innerHTML);
+    await page.waitForSelector(SPACE_TITLE, { timeout: 1000 });
+    title = await page.$eval(SPACE_TITLE, el => el.innerHTML);
   } catch (titleErr) {
     console.error(titleErr);
   }
@@ -431,10 +431,10 @@ const saveEpub = async (page, interactive) => {
   }
 
   // one file labs
-  const labIframes = await page.$$(ONEFILE_IFRAMES);
+  const labIframes = await page.$$(OFFLINE_READY_IFRAME);
   let labIframesScreenshots = [];
   if (interactive) {
-    await replaceIframeSrcWithSrcdoc(labIframes, page);
+    await replaceSrcWithSrcdocInIframe(labIframes, page);
   } else {
     labIframesScreenshots = await screenshotElements(labIframes, page);
     await replaceElementsWithScreenshots(labIframes, page);
