@@ -24,6 +24,7 @@ import getChrome from '../utils/getChrome';
 import isLambda from '../utils/isLambda';
 import coverImage from './cover';
 import {
+  AUDIO_ELEMENTS,
   BASE,
   EMBEDDED_ELEMENTS,
   GADGETS,
@@ -31,6 +32,8 @@ import {
   SPACE_TITLE,
   IMAGES,
   INTRODUCTION,
+  LAB_ELEMENTS,
+  OBJECT_ELEMENTS,
   OFFLINE_READY_IFRAME,
   SUBPAGES,
   TOOLS,
@@ -375,7 +378,7 @@ const saveEpub = async (page, interactive) => {
   // get title
   let title = 'Untitled';
   try {
-    await page.waitForSelector(SPACE_TITLE, { timeout: 1000 });
+    await page.waitForSelector(SPACE_TITLE, { timeout: 3000 });
     title = await page.$eval(SPACE_TITLE, el => el.innerHTML);
   } catch (titleErr) {
     console.error(titleErr);
@@ -417,6 +420,39 @@ const saveEpub = async (page, interactive) => {
   } else {
     gadgetScreenshots = await screenshotElements(gadgets, page);
     await replaceElementsWithScreenshots(gadgets, page);
+  }
+
+  // replace gateaway labs
+  const labs = await page.$$(LAB_ELEMENTS);
+  let labScreenshots = [];
+  if (interactive) {
+    // if the epub is interactive, we need to adjust the height of gadget iframe
+    await adjustHeightForElements(labs, page);
+  } else {
+    labScreenshots = await screenshotElements(labs, page);
+    await replaceElementsWithScreenshots(labs, page);
+  }
+
+  // replace object elements (graasp generated documents)
+  const objects = await page.$$(OBJECT_ELEMENTS);
+  let objectScreenshots = [];
+  if (interactive) {
+    // if the epub is interactive, we need to adjust the height of gadget iframe
+    await adjustHeightForElements(objects, page);
+  } else {
+    objectScreenshots = await screenshotElements(objects, page);
+    await replaceElementsWithScreenshots(objects, page);
+  }
+
+  // replace audio html5 elements
+  const audios = await page.$$(AUDIO_ELEMENTS);
+  let audioScreenshots = [];
+  if (interactive) {
+    // if the epub is interactive, we need to adjust the height of embed elements
+    await adjustHeightForElements(audios, page);
+  } else {
+    audioScreenshots = await screenshotElements(audios, page);
+    await replaceElementsWithScreenshots(audios, page);
   }
 
   // replace embedded html divs, including youtube videos
@@ -486,8 +522,11 @@ const saveEpub = async (page, interactive) => {
   const chapters = [introduction, ...body, tools];
 
   const screenshots = [
+    ...audioScreenshots,
     ...gadgetScreenshots,
     ...embedScreenshots,
+    ...labScreenshots,
+    ...objectScreenshots,
     ...unsupportedScreenshots,
     ...labIframesScreenshots,
   ];
@@ -615,8 +654,8 @@ const scrape = async ({
       Logger.info('cookie message present', err);
     } */
 
-    // wait three more seconds just in case
-    await page.waitFor(3000);
+    // wait five more seconds just in case, mainly to wait for iframes to load
+    await page.waitFor(5000);
     const formattedPage = await formatSpace(page, format, interactiveOpt);
     await browser.close();
     setTimeout(() => chrome.instance.kill(), 0);
