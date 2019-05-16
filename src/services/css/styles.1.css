@@ -8,8 +8,8 @@ h1 {
 
 /*titles*/
 h1 {
-  color: #5050d2;
-  border-bottom: 2px solid #5050d2;
+  color: white;
+  background: #5050d2;
   padding: 5px 30px;
 }
 
@@ -37,12 +37,10 @@ app-subpage-resource img {
 }
 app-subpage-resource .description p {
   text-align: center;
-  color: #5050d2;
 }
 
 .resources .description {
   /*@TODO gap for image description */
-  color: #5050d2;
   margin: 5px;
   text-align: center;
 }
