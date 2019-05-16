@@ -18,6 +18,9 @@ import {
   TIMEOUT,
   COVER_DEFAULT_PATH,
   COVER_PATH,
+  MODE_INTERACTIVE,
+  MODE_OFFLINE,
+  MODE_STATIC,
 } from '../config';
 import Logger from '../utils/Logger';
 import getChrome from '../utils/getChrome';
@@ -373,8 +376,8 @@ const replaceSrcWithSrcdocInIframe = async (elements, page) => {
   await addSrcdocWithContentToIframes(elements, iframesSrcdoc, page);
 };
 
-const saveEpub = async (page, interactive) => {
-  Logger.debug('saving epub');
+const saveEpub = async (page, mode) => {
+  Logger.debug(`saving epub in ${mode} mode`);
   // get title
   let title = 'Untitled';
   try {
@@ -411,69 +414,97 @@ const saveEpub = async (page, interactive) => {
 
   // screenshot replacements have to come after image src changes
 
-  // replace gadgets
+  // gadgets
   const gadgets = await page.$$(GADGETS);
   let gadgetScreenshots = [];
-  if (interactive) {
-    // if the epub is interactive, we need to adjust the height of gadget iframe
-    await adjustHeightForElements(gadgets, page);
-  } else {
-    gadgetScreenshots = await screenshotElements(gadgets, page);
-    await replaceElementsWithScreenshots(gadgets, page);
+  switch (mode) {
+    case MODE_INTERACTIVE:
+      // we need to adjust the height of gadget iframe
+      await adjustHeightForElements(gadgets, page);
+      break;
+    case MODE_OFFLINE:
+    case MODE_STATIC:
+    default:
+      gadgetScreenshots = await screenshotElements(gadgets, page);
+      await replaceElementsWithScreenshots(gadgets, page);
   }
 
-  // replace gateaway labs
+  // gateaway labs
   const labs = await page.$$(LAB_ELEMENTS);
   let labScreenshots = [];
-  if (interactive) {
-    // if the epub is interactive, we need to adjust the height of gadget iframe
-    await adjustHeightForElements(labs, page);
-  } else {
-    labScreenshots = await screenshotElements(labs, page);
-    await replaceElementsWithScreenshots(labs, page);
+  switch (mode) {
+    case MODE_INTERACTIVE:
+      // we need to adjust the height of gadget iframe
+      await adjustHeightForElements(labs, page);
+      break;
+    case MODE_OFFLINE:
+    case MODE_STATIC:
+    default:
+      labScreenshots = await screenshotElements(labs, page);
+      await replaceElementsWithScreenshots(labs, page);
   }
 
-  // replace object elements (graasp generated documents)
+  // object elements (graasp generated documents)
   const objects = await page.$$(OBJECT_ELEMENTS);
   let objectScreenshots = [];
-  if (interactive) {
-    // if the epub is interactive, we need to adjust the height of gadget iframe
-    await adjustHeightForElements(objects, page);
-  } else {
-    objectScreenshots = await screenshotElements(objects, page);
-    await replaceElementsWithScreenshots(objects, page);
+  switch (mode) {
+    case MODE_INTERACTIVE:
+      // we need to adjust the height of gadget iframe
+      await adjustHeightForElements(objects, page);
+      break;
+    case MODE_OFFLINE:
+    case MODE_STATIC:
+    default:
+      objectScreenshots = await screenshotElements(objects, page);
+      await replaceElementsWithScreenshots(objects, page);
   }
 
-  // replace audio html5 elements
+  // audio html5 elements
   const audios = await page.$$(AUDIO_ELEMENTS);
   let audioScreenshots = [];
-  if (interactive) {
-    // if the epub is interactive, we need to adjust the height of embed elements
-    await adjustHeightForElements(audios, page);
-  } else {
-    audioScreenshots = await screenshotElements(audios, page);
-    await replaceElementsWithScreenshots(audios, page);
+  switch (mode) {
+    case MODE_INTERACTIVE:
+    case MODE_OFFLINE:
+      // we let the element as it is
+      break;
+    case MODE_STATIC:
+    default:
+      audioScreenshots = await screenshotElements(audios, page);
+      await replaceElementsWithScreenshots(audios, page);
   }
 
-  // replace embedded html divs, including youtube videos
+  // embedded html divs, including youtube videos
   const embeds = await page.$$(EMBEDDED_ELEMENTS);
   let embedScreenshots = [];
-  if (interactive) {
-    // if the epub is interactive, we need to adjust the height of embed elements
-    await adjustHeightForElements(embeds, page);
-  } else {
-    embedScreenshots = await screenshotElements(embeds, page);
-    await replaceElementsWithScreenshots(embeds, page);
+  switch (mode) {
+    case MODE_INTERACTIVE:
+      // we need to adjust the height of gadget iframe
+      await adjustHeightForElements(embeds, page);
+      break;
+    case MODE_OFFLINE:
+    case MODE_STATIC:
+    default:
+      embedScreenshots = await screenshotElements(embeds, page);
+      await replaceElementsWithScreenshots(embeds, page);
   }
 
   // one file labs
   const labIframes = await page.$$(OFFLINE_READY_IFRAME);
   let labIframesScreenshots = [];
-  if (interactive) {
-    await replaceSrcWithSrcdocInIframe(labIframes, page);
-  } else {
-    labIframesScreenshots = await screenshotElements(labIframes, page);
-    await replaceElementsWithScreenshots(labIframes, page);
+  switch (mode) {
+    case MODE_INTERACTIVE:
+      // we let the iframe as it is
+      // @TODO adjust height
+      break;
+    case MODE_OFFLINE:
+      // we need embed content in iframe srcdoc
+      await replaceSrcWithSrcdocInIframe(labIframes, page);
+      // @TODO adjust height
+      break;
+    case MODE_STATIC:
+    default:
+      labIframesScreenshots = await screenshotElements(labIframes, page);
+      await replaceElementsWithScreenshots(labIframes, page);
   }
 
   // replace download unspported div with screenshots
@@ -500,8 +531,8 @@ const saveEpub = async (page, interactive) => {
     }))
   );
 
-  if (interactive) {
-    // decode & character because it was previously encoded by setAttribute
+  if (mode === MODE_OFFLINE) {
+    // decode & character because it was previously encoded by setAttribute for srcdoc attribute
     body = body.map(phase => ({
       title: phase.title,
       data: phase.data.replace(/&amp;(?=([1-9]|[a-zA-Z]){1,6};)/g, '&'),
@@ -540,12 +571,12 @@ const saveEpub = async (page, interactive) => {
   });
 };
 
-const formatSpace = async (page, format, interactive) => {
+const formatSpace = async (page, format, mode) => {
   Logger.debug('formatting space');
   switch (format) {
     case 'epub':
       // generate epub
-      return saveEpub(page, interactive);
+      return saveEpub(page, mode);
     case 'png':
       // print screenshot
       return page.screenshot({
@@ -581,7 +612,7 @@ const scrape = async ({
   loginTypeUrl,
   username,
   password,
-  interactiveOpt,
+  mode,
 }) => {
   Logger.debug('instantiating puppeteer');
   const chrome = await getChrome();
@@ -622,12 +653,18 @@ const scrape = async ({
     switch (auth) {
       case AUTH_TYPE_USERNAME:
         // TODO throw error if no username
+        await page.waitForSelector('#username', {
+          timeout: 1000,
+        });
         await page.type('#username', username);
         await signIn(page);
         break;
 
       case AUTH_TYPE_PASSWORD:
         // TODO throw error if no username
+        await page.waitForSelector('#username', {
+          timeout: 1000,
+        });
         await page.type('#username', username);
         await page.type('#password', password);
         await signIn(page);
@@ -656,7 +693,7 @@ const scrape = async ({
 
     // wait five more seconds just in case, mainly to wait for iframes to load
     await page.waitFor(5000);
-    const formattedPage = await formatSpace(page, format, interactiveOpt);
+    const formattedPage = await formatSpace(page, format, mode);
     await browser.close();
     setTimeout(() => chrome.instance.kill(), 0);
     return formattedPage;
@@ -688,14 +725,12 @@ const convertSpaceToFile = async (id, body, headers) => {
     lang = 'en',
     username,
     password,
-    interactive = false,
+    mode = MODE_STATIC,
   } = body;
 
   // build url from query parameters
   const url = `${GRAASP_HOST}/${lang}/pages/${id}/export`;
   const loginTypeUrl = `${AUTH_TYPE_HOST}/${id}`;
-
-  const interactiveOpt = interactive === 'true';
 
   const page = await scrape({
     url,
@@ -703,7 +738,7 @@ const convertSpaceToFile = async (id, body, headers) => {
     loginTypeUrl,
     username,
     password,
-    interactiveOpt,
+    mode,
   });
   if (!page) {
     const prettyUrl = url.split('?')[0];

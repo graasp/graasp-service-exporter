@@ -49,6 +49,10 @@ export const AUTH_TYPE_USERNAME = 'local-contextual-username';
 export const AUTH_TYPE_PASSWORD = 'local-contextual-username-password';
 export const TIMEOUT = 60000;
 
+export const MODE_STATIC = 'static';
+export const MODE_OFFLINE = 'offline';
+export const MODE_INTERACTIVE = 'interactive';
+
 export const COVER_PATH = `${TMP_FOLDER}/cover.jpg`;
 export const COVER_DEFAULT_PATH =
   'https://d28t6ykz01qrod.cloudfront.net/epfl/bg.jpg';
