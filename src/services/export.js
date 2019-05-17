@@ -4,6 +4,7 @@ import S3 from 'aws-sdk/clients/s3';
 import fs from 'fs';
 import rimraf from 'rimraf';
 import request from 'request-promise-native';
+import cheerio from 'cheerio';
 
 import { XmlEntities } from 'html-entities';
 import {
@@ -21,6 +22,7 @@ import {
   MODE_INTERACTIVE,
   MODE_OFFLINE,
   MODE_STATIC,
+  DEFAULT_LANGUAGE,
 } from '../config';
 import Logger from '../utils/Logger';
 import getChrome from '../utils/getChrome';
@@ -37,10 +39,11 @@ import {
   INTRODUCTION,
   LAB_ELEMENTS,
   OBJECT_ELEMENTS,
-  OFFLINE_READY_IFRAME,
+  OFFLINE_READY_IFRAMES,
   SUBPAGES,
   TOOLS,
   UNSUPPORTED_ELEMENTS,
+  META_DOWNLOAD,
 } from './selector';
 
 const s3 = new S3({
@@ -328,7 +331,39 @@ const retrieveBaseUrl = baseElement => {
   return url;
 };
 
-const replaceSrcWithSrcdocInIframe = async (elements, page) => {
+const getDownloadUrl = async (content, lang) => {
+  const $ = cheerio.load(content);
+  let url = null;
+
+  // look for the url corresponding with the language
+  const elem = $(`${META_DOWNLOAD}[language=${lang}]`);
+  if (elem) {
+    url = elem.attr('value');
+  }
+  // fall back on the default language
+  else if (lang !== DEFAULT_LANGUAGE) {
+    const elemDefaultLang = $(`${META_DOWNLOAD}[language=${DEFAULT_LANGUAGE}]`);
+    if (elemDefaultLang) {
+      url = elemDefaultLang.attr('value');
+    }
+  }
+
+  return url;
+};
+
+// fall back on lab content with the corresponding language
+const retrieveContentBasedOnLanguage = async (url, lang) => {
+  let content = await request(url);
+  const downloadUrl = await getDownloadUrl(content, lang);
+  if (downloadUrl) {
+    content = await request(downloadUrl);
+  }
+  return content;
+};
+
+const replaceSrcWithSrcdocInIframe = async (elements, page, lang) => {
+  Logger.debug('Replace iframes src with srcdoc content');
+
   // Here you can use few identifying methods like url(),name(),title()
   const mainBaseUrl = await page.$eval(BASE, retrieveBaseUrl);
   await prepareIframes(elements, 'src', mainBaseUrl, page);
@@ -350,33 +385,20 @@ const replaceSrcWithSrcdocInIframe = async (elements, page) => {
   // where await is needed due to requirement of sequential steps
   // check for discussion: http://bit.ly/2JcMMLk
   // eslint-disable-next-line no-restricted-syntax
-  for (const frame of page.mainFrame().childFrames()) {
-    try {
-      // eslint-disable-next-line no-await-in-loop
-      const url = await frame.url();
+  for (const url of urls) {
+    // eslint-disable-next-line no-await-in-loop
+    let content = await retrieveContentBasedOnLanguage(url, lang);
 
-      // process only wanted frames
-      // warning: causes a lot of corner cases, but cannot use ids/frame.name() because
-      // iframes do not have id when loading the page (adding them afterwards do
-      // not seem to affect frame attributes)
-      if (urls.includes(url)) {
-        // eslint-disable-next-line no-await-in-loop
-        let content = await frame.content();
-
-        // xml entities encoding
-        content = entities.encode(content);
-        iframesSrcdoc[url] = content;
-      }
-    } catch (err) {
-      Logger.debug(err);
-    }
+    // xml entities encoding
+    content = entities.encode(content);
+    iframesSrcdoc[url] = content;
   }
 
   // replace iframes with corresponding contents
   await addSrcdocWithContentToIframes(elements, iframesSrcdoc, page);
 };
 
-const saveEpub = async (page, mode) => {
+const saveEpub = async (page, mode, lang) => {
   Logger.debug(`saving epub in ${mode} mode`);
   // get title
   let title = 'Untitled';
@@ -414,6 +436,28 @@ const saveEpub = async (page, mode) => {
 
   // screenshot replacements have to come after image src changes
 
+  // one file labs
+  const offlineIframes = await page.$x(OFFLINE_READY_IFRAMES);
+  let offlineIframesScreenshots = [];
+  switch (mode) {
+    case MODE_INTERACTIVE:
+      // we let the iframe as it is
+      // height is adjusted in the export view
+      break;
+    case MODE_OFFLINE:
+      // we need embed content in iframe srcdoc
+      await replaceSrcWithSrcdocInIframe(offlineIframes, page, lang);
+      // height is adjusted in the export view
+      break;
+    case MODE_STATIC:
+    default:
+      offlineIframesScreenshots = await screenshotElements(
+        offlineIframes,
+        page
+      );
+      await replaceElementsWithScreenshots(offlineIframes, page);
+  }
+
   // gadgets
   const gadgets = await page.$$(GADGETS);
   let gadgetScreenshots = [];
@@ -430,7 +474,7 @@ const saveEpub = async (page, mode) => {
   }
 
   // gateaway labs
-  const labs = await page.$$(LAB_ELEMENTS);
+  const labs = await page.$x(LAB_ELEMENTS);
   let labScreenshots = [];
   switch (mode) {
     case MODE_INTERACTIVE:
@@ -488,25 +532,6 @@ const saveEpub = async (page, mode) => {
       await replaceElementsWithScreenshots(embeds, page);
   }
 
-  // one file labs
-  const labIframes = await page.$$(OFFLINE_READY_IFRAME);
-  let labIframesScreenshots = [];
-  switch (mode) {
-    case MODE_INTERACTIVE:
-      // we let the iframe as it is
-      // @TODO adjust height
-      break;
-    case MODE_OFFLINE:
-      // we need embed content in iframe srcdoc
-      await replaceSrcWithSrcdocInIframe(labIframes, page);
-      // @TODO adjust height
-      break;
-    case MODE_STATIC:
-    default:
-      labIframesScreenshots = await screenshotElements(labIframes, page);
-      await replaceElementsWithScreenshots(labIframes, page);
-  }
-
   // replace download unspported div with screenshots
   const unsupported = await page.$$(UNSUPPORTED_ELEMENTS);
   const unsupportedScreenshots = await screenshotElements(unsupported, page);
@@ -559,7 +584,7 @@ const saveEpub = async (page, mode) => {
     ...labScreenshots,
     ...objectScreenshots,
     ...unsupportedScreenshots,
-    ...labIframesScreenshots,
+    ...offlineIframesScreenshots,
   ];
   // prepare epub
   return generateEpub({
@@ -571,12 +596,12 @@ const saveEpub = async (page, mode) => {
   });
 };
 
-const formatSpace = async (page, format, mode) => {
+const formatSpace = async (page, format, mode, lang) => {
   Logger.debug('formatting space');
   switch (format) {
     case 'epub':
       // generate epub
-      return saveEpub(page, mode);
+      return saveEpub(page, mode, lang);
     case 'png':
       // print screenshot
       return page.screenshot({
@@ -613,6 +638,7 @@ const scrape = async ({
   username,
   password,
   mode,
+  lang,
 }) => {
   Logger.debug('instantiating puppeteer');
   const chrome = await getChrome();
@@ -679,21 +705,21 @@ const scrape = async ({
 
     // dismiss cookie banner
     /* const dismissCookiesMessageButton = 'a.cc-dismiss';
-    
-    // we do not want to error out just because of the cookie message
-    Logger.debug('dismissing cookie banner');
-    try {
-      await page.waitForSelector(dismissCookiesMessageButton, {
-        timeout: 1000,
-      });
-      await page.click(dismissCookiesMessageButton);
-    } catch (err) {
-      Logger.info('cookie message present', err);
-    } */
+      
+      // we do not want to error out just because of the cookie message
+      Logger.debug('dismissing cookie banner');
+      try {
+        await page.waitForSelector(dismissCookiesMessageButton, {
+          timeout: 1000,
+        });
+        await page.click(dismissCookiesMessageButton);
+      } catch (err) {
+        Logger.info('cookie message present', err);
+      } */
 
     // wait five more seconds just in case, mainly to wait for iframes to load
     await page.waitFor(5000);
-    const formattedPage = await formatSpace(page, format, mode);
+    const formattedPage = await formatSpace(page, format, mode, lang);
     await browser.close();
     setTimeout(() => chrome.instance.kill(), 0);
     return formattedPage;
@@ -722,14 +748,16 @@ const convertSpaceToFile = async (id, body, headers) => {
   // return in pdf format by default
   const {
     format = 'pdf',
-    lang = 'en',
+    lang = DEFAULT_LANGUAGE,
     username,
     password,
     mode = MODE_STATIC,
   } = body;
 
+  const languageCode = lang.split('_')[0];
+
   // build url from query parameters
-  const url = `${GRAASP_HOST}/${lang}/pages/${id}/export`;
+  const url = `${GRAASP_HOST}/${languageCode}/pages/${id}/export`;
   const loginTypeUrl = `${AUTH_TYPE_HOST}/${id}`;
 
   const page = await scrape({
@@ -739,6 +767,7 @@ const convertSpaceToFile = async (id, body, headers) => {
     username,
     password,
     mode,
+    lang,
   });
   if (!page) {
     const prettyUrl = url.split('?')[0];

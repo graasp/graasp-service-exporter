@@ -49,6 +49,8 @@ export const AUTH_TYPE_USERNAME = 'local-contextual-username';
 export const AUTH_TYPE_PASSWORD = 'local-contextual-username-password';
 export const TIMEOUT = 60000;
 
+export const DEFAULT_LANGUAGE = 'en';
+
 export const MODE_STATIC = 'static';
 export const MODE_OFFLINE = 'offline';
 export const MODE_INTERACTIVE = 'interactive';
