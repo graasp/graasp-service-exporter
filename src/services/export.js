@@ -194,7 +194,7 @@ const getBackground = (el, host) => {
   const backgroundUrl = el.dataset.backgroundImage;
   if (backgroundUrl) {
     if (backgroundUrl.startsWith('//')) {
-      return `http:${backgroundUrl}`;
+      return `https:${backgroundUrl}`;
     }
     if (!backgroundUrl.startsWith('http')) {
       return host + backgroundUrl;
@@ -245,8 +245,9 @@ const saveEpub = async (page, interactive) => {
   try {
     background = await page.$eval('div.header', getBackground, GRAASP_HOST);
     if (!(background instanceof String) && typeof background !== 'string') {
-      background = null;
+      background = COVER_DEFAULT_PATH;
     }
+    Logger.debug(`-----------------${background}`);
   } catch (err) {
     console.error(err);
   }
