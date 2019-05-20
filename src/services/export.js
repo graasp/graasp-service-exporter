@@ -46,6 +46,8 @@ import {
   META_DOWNLOAD,
   USERNAME,
   PASSWORD,
+  RESOURCES,
+  PHASE_TITLES,
 } from './selectors';
 
 const s3 = new S3({
@@ -528,8 +530,8 @@ const saveEpub = async (page, mode, lang) => {
   // use the export class to differentiate from tools content
   let body = await page.$$eval(SUBPAGES, phases =>
     phases.map(phase => ({
-      title: phase.getElementsByClassName('name')[0].innerHTML,
-      data: phase.getElementsByClassName('resources')[0].innerHTML,
+      title: phase.getElementsByClassName(PHASE_TITLES)[0].innerHTML,
+      data: phase.getElementsByClassName(RESOURCES)[0].innerHTML,
     }))
   );
 
