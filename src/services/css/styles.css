@@ -2,10 +2,6 @@
   font-family: 'arial'; /*should use reader default settings*/
 }
 
-h1 {
-  /*text-transform:capitalize;*/
-}
-
 /*titles*/
 h1 {
   color: #5050d2;
@@ -18,6 +14,7 @@ body > div {
   padding: 10px 20px;
 }
 
+/*content separator*/
 /* body > div:not(:last-child) {
     
     border-bottom:1px solid lightgrey;
@@ -86,15 +83,4 @@ audio {
 /* override space content padding */
 ng-component app-subpage-content {
   padding: 30px 0;
-}
-
-/*general margins*/
-/* .export > section > .resources, .tools > section > .resources, .description  {
-    margin:0 30px;
-    display:block;
-} */
-
-/*@TODO separator*/
-/* app-subpage-content:not(.tools) > div:not(.description):not(:last-child) { */
-app-subpage-resource {
 }
