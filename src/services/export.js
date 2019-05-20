@@ -44,7 +44,9 @@ import {
   TOOLS,
   UNSUPPORTED_ELEMENTS,
   META_DOWNLOAD,
-} from './selector';
+  USERNAME,
+  PASSWORD,
+} from './selectors';
 
 const s3 = new S3({
   s3ForcePathStyle: isLambda ? undefined : true,
@@ -72,7 +74,6 @@ const generateEpub = async ({
     'Student Name': 'name',
   };
   // we wait for the cover image because it loads asynchronously the bakground image file
-  // Logger.debug(`---------${background}`);
   await coverImage(background, title, author, metadata);
 
   Logger.debug('generating epub');
@@ -192,27 +193,6 @@ const replaceElementsWithScreenshots = async (elements, page) => {
     await page.evaluate(replaceElementWithScreenshot, element, TMP_FOLDER);
   }
 };
-
-// const replaceElementUrl = (el) => {
-//   // this function runs inside the dom so document will be defined
-//   // eslint-disable-next-line no-undef
-//   const iframe = el.querySelector("iframe");
-//   const ressourceId = el.getAttribute('id');
-//   iframe.src = `http://cloud.graasp.eu/pages/${pageId}/subpages/${subpageId}/resources/${ressourceId}`;
-// };
-
-// const replaceUrlForElements = async (elements, page) => {
-//   Logger.debug('replacing elements url with graasp ressources');
-
-//   // using for-of-loop for readability when using await inside a loop
-//   // where await is needed due to requirement of sequential steps
-//   // check for discussion: http://bit.ly/2JcMMLk
-//   // eslint-disable-next-line no-restricted-syntax
-//   for (const element of elements) {
-//     // eslint-disable-next-line no-await-in-loop
-//     await page.evaluate(replaceElementUrl, element);
-//   }
-// };
 
 /* eslint no-param-reassign: ["error", { "props": true, "ignorePropertyModificationsFor": ["el"] }] */
 const adjustElementHeight = el => {
@@ -362,7 +342,7 @@ const retrieveContentBasedOnLanguage = async (url, lang) => {
 };
 
 const replaceSrcWithSrcdocInIframe = async (elements, page, lang) => {
-  Logger.debug('Replace iframes src with srcdoc content');
+  Logger.debug('replace iframes src with srcdoc content');
 
   // Here you can use few identifying methods like url(),name(),title()
   const mainBaseUrl = await page.$eval(BASE, retrieveBaseUrl);
@@ -438,7 +418,7 @@ const saveEpub = async (page, mode, lang) => {
 
   // one file labs
   const offlineIframes = await page.$x(OFFLINE_READY_IFRAMES);
-  let offlineIframesScreenshots = [];
+  let offlineIframeScreenshots = [];
   switch (mode) {
     case MODE_INTERACTIVE:
       // we let the iframe as it is
@@ -451,10 +431,7 @@ const saveEpub = async (page, mode, lang) => {
       break;
     case MODE_STATIC:
     default:
-      offlineIframesScreenshots = await screenshotElements(
-        offlineIframes,
-        page
-      );
+      offlineIframeScreenshots = await screenshotElements(offlineIframes, page);
       await replaceElementsWithScreenshots(offlineIframes, page);
   }
 
@@ -584,7 +561,7 @@ const saveEpub = async (page, mode, lang) => {
     ...labScreenshots,
     ...objectScreenshots,
     ...unsupportedScreenshots,
-    ...offlineIframesScreenshots,
+    ...offlineIframeScreenshots,
   ];
   // prepare epub
   return generateEpub({
@@ -679,20 +656,20 @@ const scrape = async ({
     switch (auth) {
       case AUTH_TYPE_USERNAME:
         // TODO throw error if no username
-        await page.waitForSelector('#username', {
+        await page.waitForSelector(USERNAME, {
           timeout: 1000,
         });
-        await page.type('#username', username);
+        await page.type(USERNAME, username);
         await signIn(page);
         break;
 
       case AUTH_TYPE_PASSWORD:
         // TODO throw error if no username
-        await page.waitForSelector('#username', {
+        await page.waitForSelector(USERNAME, {
           timeout: 1000,
         });
-        await page.type('#username', username);
-        await page.type('#password', password);
+        await page.type(USERNAME, username);
+        await page.type(PASSWORD, password);
         await signIn(page);
         break;
 

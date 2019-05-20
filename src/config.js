@@ -52,7 +52,7 @@ export const TIMEOUT = 60000;
 export const DEFAULT_LANGUAGE = 'en';
 
 export const MODE_STATIC = 'static';
-export const MODE_OFFLINE = 'offline';
+export const MODE_OFFLINE = 'read-only';
 export const MODE_INTERACTIVE = 'interactive';
 
 export const COVER_PATH = `${TMP_FOLDER}/cover.jpg`;

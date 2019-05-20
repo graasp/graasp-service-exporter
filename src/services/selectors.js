@@ -13,6 +13,8 @@ const SUBPAGES = '.export > section';
 const TOOLS = '.tools > section';
 const UNSUPPORTED_ELEMENTS = '.resources .unsupported';
 const META_DOWNLOAD = 'meta[name=download]';
+const USERNAME = '#username';
+const PASSWORD = '#password';
 
 export {
   AUDIO_ELEMENTS,
@@ -30,4 +32,6 @@ export {
   TOOLS,
   UNSUPPORTED_ELEMENTS,
   META_DOWNLOAD,
+  USERNAME,
+  PASSWORD,
 };
