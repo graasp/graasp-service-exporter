@@ -4,6 +4,9 @@ import S3 from 'aws-sdk/clients/s3';
 import fs from 'fs';
 import rimraf from 'rimraf';
 import request from 'request-promise-native';
+import cheerio from 'cheerio';
+
+import { XmlEntities } from 'html-entities';
 import {
   GRAASP_HOST,
   S3_BUCKET,
@@ -16,11 +19,36 @@ import {
   TIMEOUT,
   COVER_DEFAULT_PATH,
   COVER_PATH,
+  MODE_INTERACTIVE,
+  MODE_OFFLINE,
+  MODE_STATIC,
+  DEFAULT_LANGUAGE,
 } from '../config';
 import Logger from '../utils/Logger';
 import getChrome from '../utils/getChrome';
 import isLambda from '../utils/isLambda';
 import coverImage from './cover';
+import {
+  AUDIO_ELEMENTS,
+  BASE,
+  EMBEDDED_ELEMENTS,
+  GADGETS,
+  HEADER,
+  SPACE_TITLE,
+  IMAGES,
+  INTRODUCTION,
+  LAB_ELEMENTS,
+  OBJECT_ELEMENTS,
+  OFFLINE_READY_IFRAMES,
+  SUBPAGES,
+  TOOLS,
+  UNSUPPORTED_ELEMENTS,
+  META_DOWNLOAD,
+  USERNAME,
+  PASSWORD,
+  RESOURCES,
+  PHASE_TITLES,
+} from './selectors';
 
 const s3 = new S3({
   s3ForcePathStyle: isLambda ? undefined : true,
@@ -48,7 +76,6 @@ const generateEpub = async ({
     'Student Name': 'name',
   };
   // we wait for the cover image because it loads asynchronously the bakground image file
-  Logger.debug(`---------${background}`);
   await coverImage(background, title, author, metadata);
 
   Logger.debug('generating epub');
@@ -216,14 +243,150 @@ const makeImageSourcesAbsolute = (imgs, host) => {
   });
 };
 
-const saveEpub = async (page, interactive) => {
-  Logger.debug('saving epub');
+const makeElementLinkAbsolute = (el, attrName, baseUrl) => {
+  const url = el.getAttribute(attrName);
+  if (url) {
+    // replace link with absolute base url
+    if (url.startsWith('./')) {
+      const newUrl = baseUrl + url.substring(2);
+      el.setAttribute(attrName, newUrl);
+    }
+    // make link url absolute
+    else if (url.startsWith('//')) {
+      const newUrl = `https:${url}`;
+      el.setAttribute(attrName, newUrl);
+    }
+  }
+};
+
+const prepareIframes = async (iframes, attrName, baseUrl, page) => {
+  // using for-of-loop for readability when using await inside a loop
+  // where await is needed due to requirement of sequential steps
+  // check for discussion: http://bit.ly/2JcMMLk
+  // eslint-disable-next-line no-restricted-syntax
+  for (const iframe of iframes) {
+    // make absolute iframe url
+    // eslint-disable-next-line no-await-in-loop
+    await page.evaluate(makeElementLinkAbsolute, iframe, attrName, baseUrl);
+  }
+};
+
+const addSrcdocWithContentToIframe = (iframe, contents) => {
+  const src = iframe.getAttribute('src');
+  iframe.setAttribute('srcdoc', contents[src]);
+  iframe.removeAttribute('src');
+};
+
+const addSrcdocWithContentToIframes = async (iframes, contents, page) => {
+  // using for-of-loop for readability when using await inside a loop
+  // where await is needed due to requirement of sequential steps
+  // check for discussion: http://bit.ly/2JcMMLk
+  // eslint-disable-next-line no-restricted-syntax
+  for (const iframe of iframes) {
+    // eslint-disable-next-line no-await-in-loop
+    await page.evaluate(addSrcdocWithContentToIframe, iframe, contents);
+  }
+};
+
+const retrieveUrls = async (iframes, page) => {
+  const urls = [];
+
+  // using for-of-loop for readability when using await inside a loop
+  // where await is needed due to requirement of sequential steps
+  // check for discussion: http://bit.ly/2JcMMLk
+  // eslint-disable-next-line no-restricted-syntax
+  for (const iframe of iframes) {
+    // eslint-disable-next-line no-await-in-loop
+    const url = await page.evaluate(i => i.getAttribute('src'), iframe);
+    urls.push(url);
+  }
+  return urls;
+};
+
+const retrieveBaseUrl = baseElement => {
+  let url = baseElement.getAttribute('href');
+  if (url === null) {
+    url = 'https://';
+  } else if (url.startsWith('//')) {
+    url = `https:${url.substring(1)}`;
+  }
+  return url;
+};
+
+const getDownloadUrl = async (content, lang) => {
+  const $ = cheerio.load(content);
+  let url = null;
+
+  // look for the url corresponding with the language
+  const elem = $(`${META_DOWNLOAD}[language=${lang}]`);
+  if (elem) {
+    url = elem.attr('value');
+  }
+  // fall back on the default language
+  else if (lang !== DEFAULT_LANGUAGE) {
+    const elemDefaultLang = $(`${META_DOWNLOAD}[language=${DEFAULT_LANGUAGE}]`);
+    if (elemDefaultLang) {
+      url = elemDefaultLang.attr('value');
+    }
+  }
+
+  return url;
+};
+
+// fall back on lab content with the corresponding language
+const retrieveContentBasedOnLanguage = async (url, lang) => {
+  let content = await request(url);
+  const downloadUrl = await getDownloadUrl(content, lang);
+  if (downloadUrl) {
+    content = await request(downloadUrl);
+  }
+  return content;
+};
+
+const replaceSrcWithSrcdocInIframe = async (elements, page, lang) => {
+  Logger.debug('replace iframes src with srcdoc content');
+
+  // Here you can use few identifying methods like url(),name(),title()
+  const mainBaseUrl = await page.$eval(BASE, retrieveBaseUrl);
+  await prepareIframes(elements, 'src', mainBaseUrl, page);
+
+  // wait for iframes to reload
+  await page.waitFor(4000);
+
+  // obtain wanted iframe ids
+  const iframeUrls = await retrieveUrls(elements, page);
+  const urls = [...iframeUrls];
+
+  // collect all useful frames content
+  const iframesSrcdoc = {};
+
+  // encode special characters into xml entities
+  const entities = new XmlEntities();
+
+  // using for-of-loop for readability when using await inside a loop
+  // where await is needed due to requirement of sequential steps
+  // check for discussion: http://bit.ly/2JcMMLk
+  // eslint-disable-next-line no-restricted-syntax
+  for (const url of urls) {
+    // eslint-disable-next-line no-await-in-loop
+    let content = await retrieveContentBasedOnLanguage(url, lang);
+
+    // xml entities encoding
+    content = entities.encode(content);
+    iframesSrcdoc[url] = content;
+  }
+
+  // replace iframes with corresponding contents
+  await addSrcdocWithContentToIframes(elements, iframesSrcdoc, page);
+};
+
+const saveEpub = async (page, mode, lang) => {
+  Logger.debug(`saving epub in ${mode} mode`);
   // get title
   let title = 'Untitled';
   try {
-    const titleSelector = 'div.header > h1';
-    await page.waitForSelector(titleSelector, { timeout: 1000 });
-    title = await page.$eval(titleSelector, el => el.innerHTML);
+    await page.waitForSelector(SPACE_TITLE, { timeout: 3000 });
+    title = await page.$eval(SPACE_TITLE, el => el.innerHTML);
   } catch (titleErr) {
     console.error(titleErr);
   }
@@ -238,12 +401,11 @@ const saveEpub = async (page, interactive) => {
   } catch (authorErr) {
     console.error(authorErr);
   }
- */
-  // @TODO get background element
+  */
   // get background to use as cover
   let background = COVER_DEFAULT_PATH;
   try {
-    background = await page.$eval('div.header', getBackground, GRAASP_HOST);
+    background = await page.$eval(HEADER, getBackground, GRAASP_HOST);
     if (!(background instanceof String) && typeof background !== 'string') {
       background = COVER_DEFAULT_PATH;
     }
@@ -253,37 +415,105 @@ const saveEpub = async (page, interactive) => {
   }
 
   // replace relative images with absolute
-  await page.$$eval('img', makeImageSourcesAbsolute, GRAASP_HOST);
+  await page.$$eval(IMAGES, makeImageSourcesAbsolute, GRAASP_HOST);
 
   // screenshot replacements have to come after image src changes
 
-  // replace gadgets
-  const gadgets = await page.$$('div.gadget');
-  let gadgetScreenshots = [];
-  if (interactive) {
-    // if the epub is interactive, we need to adjust the height of gadget iframe
-    await adjustHeightForElements(gadgets, page);
-  } else {
-    gadgetScreenshots = await screenshotElements(gadgets, page);
-    await replaceElementsWithScreenshots(gadgets, page);
+  // one file labs
+  const offlineIframes = await page.$x(OFFLINE_READY_IFRAMES);
+  let offlineIframeScreenshots = [];
+  switch (mode) {
+    case MODE_INTERACTIVE:
+      // we let the iframe as it is
+      // height is adjusted in the export view
+      break;
+    case MODE_OFFLINE:
+      // we need embed content in iframe srcdoc
+      await replaceSrcWithSrcdocInIframe(offlineIframes, page, lang);
+      // height is adjusted in the export view
+      break;
+    case MODE_STATIC:
+    default:
+      offlineIframeScreenshots = await screenshotElements(offlineIframes, page);
+      await replaceElementsWithScreenshots(offlineIframes, page);
   }
 
-  // remove panels accompanying gadgets
-  // await page.$$eval('div.panel', els => els.forEach(el => el.remove()));
+  // gadgets
+  const gadgets = await page.$$(GADGETS);
+  let gadgetScreenshots = [];
+  switch (mode) {
+    case MODE_INTERACTIVE:
+      // we need to adjust the height of gadget iframe
+      await adjustHeightForElements(gadgets, page);
+      break;
+    case MODE_OFFLINE:
+    case MODE_STATIC:
+    default:
+      gadgetScreenshots = await screenshotElements(gadgets, page);
+      await replaceElementsWithScreenshots(gadgets, page);
+  }
 
-  // replace embedded html divs, including youtube videos
-  const embeds = await page.$$('.resources .embedded-html');
+  // gateaway labs
+  const labs = await page.$x(LAB_ELEMENTS);
+  let labScreenshots = [];
+  switch (mode) {
+    case MODE_INTERACTIVE:
+      // we need to adjust the height of gadget iframe
+      await adjustHeightForElements(labs, page);
+      break;
+    case MODE_OFFLINE:
+    case MODE_STATIC:
+    default:
+      labScreenshots = await screenshotElements(labs, page);
+      await replaceElementsWithScreenshots(labs, page);
+  }
+
+  // object elements (graasp generated documents)
+  const objects = await page.$$(OBJECT_ELEMENTS);
+  let objectScreenshots = [];
+  switch (mode) {
+    case MODE_INTERACTIVE:
+      // we need to adjust the height of gadget iframe
+      await adjustHeightForElements(objects, page);
+      break;
+    case MODE_OFFLINE:
+    case MODE_STATIC:
+    default:
+      objectScreenshots = await screenshotElements(objects, page);
+      await replaceElementsWithScreenshots(objects, page);
+  }
+
+  // audio html5 elements
+  const audios = await page.$$(AUDIO_ELEMENTS);
+  let audioScreenshots = [];
+  switch (mode) {
+    case MODE_INTERACTIVE:
+    case MODE_OFFLINE:
+      // we let the element as it is
+      break;
+    case MODE_STATIC:
+    default:
+      audioScreenshots = await screenshotElements(audios, page);
+      await replaceElementsWithScreenshots(audios, page);
+  }
+
+  // embedded html divs, including youtube videos
+  const embeds = await page.$$(EMBEDDED_ELEMENTS);
   let embedScreenshots = [];
-  if (interactive) {
-    // if the epub is interactive, we need to adjust the height of embed elements
-    await adjustHeightForElements(embeds, page);
-  } else {
-    embedScreenshots = await screenshotElements(embeds, page);
-    await replaceElementsWithScreenshots(embeds, page);
+  switch (mode) {
+    case MODE_INTERACTIVE:
+      // we need to adjust the height of gadget iframe
+      await adjustHeightForElements(embeds, page);
+      break;
+    case MODE_OFFLINE:
+    case MODE_STATIC:
+    default:
+      embedScreenshots = await screenshotElements(embeds, page);
+      await replaceElementsWithScreenshots(embeds, page);
   }
 
   // replace download unspported div with screenshots
-  const unsupported = await page.$$('.resources .unsupported');
+  const unsupported = await page.$$(UNSUPPORTED_ELEMENTS);
   const unsupportedScreenshots = await screenshotElements(unsupported, page);
   await replaceElementsWithScreenshots(unsupported, page);
 
@@ -292,26 +522,34 @@ const saveEpub = async (page, interactive) => {
   try {
     // todo: parse title in appropriate language
     introduction.title = 'Introduction';
-    introduction.data = await page.$eval('.description p', el => el.innerHTML);
+    introduction.data = await page.$eval(INTRODUCTION, el => el.innerHTML);
   } catch (err) {
     console.error(err);
   }
 
   // get body for epub
   // use the export class to differentiate from tools content
-  const body = await page.$$eval('.export > section', phases =>
+  let body = await page.$$eval(SUBPAGES, phases =>
     phases.map(phase => ({
-      title: phase.getElementsByClassName('name')[0].innerHTML,
-      data: phase.getElementsByClassName('resources')[0].innerHTML,
+      title: phase.getElementsByClassName(PHASE_TITLES)[0].innerHTML,
+      data: phase.getElementsByClassName(RESOURCES)[0].innerHTML,
     }))
   );
+
+  if (mode === MODE_OFFLINE) {
+    // decode & character because it was previously encoded by setAttribute for srcdoc attribute
+    body = body.map(phase => ({
+      title: phase.title,
+      data: phase.data.replace(/&amp;(?=([1-9]|[a-zA-Z]){1,6};)/g, '&'),
+    }));
+  }
 
   // get tools for epub
   const tools = {};
   try {
     // todo: parse title in appropriate language
     tools.title = 'Tools';
-    tools.data = await page.$eval('.tools > section', el => el.innerHTML);
+    tools.data = await page.$eval(TOOLS, el => el.innerHTML);
   } catch (err) {
     Logger.error(err);
   }
@@ -320,9 +558,13 @@ const saveEpub = async (page, interactive) => {
   const chapters = [introduction, ...body, tools];
 
   const screenshots = [
+    ...audioScreenshots,
     ...gadgetScreenshots,
     ...embedScreenshots,
+    ...labScreenshots,
+    ...objectScreenshots,
     ...unsupportedScreenshots,
+    ...offlineIframeScreenshots,
   ];
   // prepare epub
   return generateEpub({
@@ -334,12 +576,12 @@ const saveEpub = async (page, interactive) => {
   });
 };
 
-const formatSpace = async (page, format, interactive) => {
+const formatSpace = async (page, format, mode, lang) => {
   Logger.debug('formatting space');
   switch (format) {
     case 'epub':
       // generate epub
-      return saveEpub(page, interactive);
+      return saveEpub(page, mode, lang);
     case 'png':
       // print screenshot
       return page.screenshot({
@@ -375,7 +617,8 @@ const scrape = async ({
   loginTypeUrl,
   username,
   password,
-  interactiveOpt,
+  mode,
+  lang,
 }) => {
   Logger.debug('instantiating puppeteer');
   const chrome = await getChrome();
@@ -416,39 +659,47 @@ const scrape = async ({
     switch (auth) {
       case AUTH_TYPE_USERNAME:
         // TODO throw error if no username
-        await page.type('#username', username);
+        await page.waitForSelector(USERNAME, {
+          timeout: 1000,
+        });
+        await page.type(USERNAME, username);
         await signIn(page);
         break;
 
       case AUTH_TYPE_PASSWORD:
         // TODO throw error if no username
-        await page.type('#username', username);
-        await page.type('#password', password);
+        await page.waitForSelector(USERNAME, {
+          timeout: 1000,
+        });
+        await page.type(USERNAME, username);
+        await page.type(PASSWORD, password);
         await signIn(page);
         break;
 
       case AUTH_TYPE_ANONYMOUS:
-      default:
         await signIn(page);
+        break;
+
+      default:
     }
 
     // dismiss cookie banner
     /* const dismissCookiesMessageButton = 'a.cc-dismiss';
+      
+      // we do not want to error out just because of the cookie message
+      Logger.debug('dismissing cookie banner');
+      try {
+        await page.waitForSelector(dismissCookiesMessageButton, {
+          timeout: 1000,
+        });
+        await page.click(dismissCookiesMessageButton);
+      } catch (err) {
+        Logger.info('cookie message present', err);
+      } */
 
-    // we do not want to error out just because of the cookie message
-    Logger.debug('dismissing cookie banner');
-    try {
-      await page.waitForSelector(dismissCookiesMessageButton, {
-        timeout: 1000,
-      });
-      await page.click(dismissCookiesMessageButton);
-    } catch (err) {
-      Logger.info('cookie message present', err);
-    } */
-
-    // wait three more seconds just in case
-    await page.waitFor(3000);
-    const formattedPage = await formatSpace(page, format, interactiveOpt);
+    // wait five more seconds just in case, mainly to wait for iframes to load
+    await page.waitFor(5000);
+    const formattedPage = await formatSpace(page, format, mode, lang);
     await browser.close();
     setTimeout(() => chrome.instance.kill(), 0);
     return formattedPage;
@@ -477,17 +728,17 @@ const convertSpaceToFile = async (id, body, headers) => {
   // return in pdf format by default
   const {
     format = 'pdf',
-    lang = 'en',
+    lang = DEFAULT_LANGUAGE,
     username,
     password,
-    interactive = false,
+    mode = MODE_STATIC,
   } = body;
 
-  // build url from query parameters
-  const url = `${GRAASP_HOST}/${lang}/pages/${id}/export`;
-  const loginTypeUrl = `${AUTH_TYPE_HOST}/${id}`;
+  const languageCode = lang.split('_')[0];
 
-  const interactiveOpt = interactive === 'true';
+  // build url from query parameters
+  const url = `${GRAASP_HOST}/${languageCode}/pages/${id}/export`;
+  const loginTypeUrl = `${AUTH_TYPE_HOST}/${id}`;
 
   const page = await scrape({
     url,
@@ -495,7 +746,8 @@ const convertSpaceToFile = async (id, body, headers) => {
     loginTypeUrl,
     username,
     password,
-    interactiveOpt,
+    mode,
+    lang,
   });
   if (!page) {
     const prettyUrl = url.split('?')[0];
