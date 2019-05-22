@@ -20,7 +20,7 @@ import {
   COVER_DEFAULT_PATH,
   COVER_PATH,
   MODE_INTERACTIVE,
-  MODE_OFFLINE,
+  MODE_READONLY,
   MODE_STATIC,
   DEFAULT_LANGUAGE,
   CSS_STYLES_FILE,
@@ -35,20 +35,21 @@ import {
   EMBEDDED_ELEMENTS,
   GADGETS,
   HEADER,
-  SPACE_TITLE,
   IMAGES,
   INTRODUCTION,
   LAB_ELEMENTS,
+  META_DOWNLOAD,
   OBJECT_ELEMENTS,
   OFFLINE_READY_IFRAMES,
+  PASSWORD,
+  PHASE_DESCRIPTIONS,
+  PHASE_TITLES,
+  RESOURCES,
+  SPACE_TITLE,
   SUBPAGES,
   TOOLS,
   UNSUPPORTED_ELEMENTS,
-  META_DOWNLOAD,
   USERNAME,
-  PASSWORD,
-  RESOURCES,
-  PHASE_TITLES,
 } from './selectors';
 
 const s3 = new S3({
@@ -448,7 +449,7 @@ const saveEpub = async (page, mode, lang) => {
       // we let the iframe as it is
       // height is adjusted in the export view
       break;
-    case MODE_OFFLINE:
+    case MODE_READONLY:
       // we need embed content in iframe srcdoc
       await replaceSrcWithSrcdocInIframe(offlineIframes, page, lang);
       // height is adjusted in the export view
@@ -467,7 +468,7 @@ const saveEpub = async (page, mode, lang) => {
       // we need to adjust the height of gadget iframe
       await adjustHeightForElements(gadgets, page);
       break;
-    case MODE_OFFLINE:
+    case MODE_READONLY:
     case MODE_STATIC:
     default:
       gadgetScreenshots = await screenshotElements(gadgets, page);
@@ -482,7 +483,7 @@ const saveEpub = async (page, mode, lang) => {
       // we need to adjust the height of gadget iframe
       await adjustHeightForElements(labs, page);
       break;
-    case MODE_OFFLINE:
+    case MODE_READONLY:
     case MODE_STATIC:
     default:
       labScreenshots = await screenshotElements(labs, page);
@@ -497,7 +498,7 @@ const saveEpub = async (page, mode, lang) => {
       // we need to adjust the height of gadget iframe
       await adjustHeightForElements(objects, page);
       break;
-    case MODE_OFFLINE:
+    case MODE_READONLY:
     case MODE_STATIC:
     default:
       objectScreenshots = await screenshotElements(objects, page);
@@ -511,7 +512,7 @@ const saveEpub = async (page, mode, lang) => {
     case MODE_INTERACTIVE:
       // we let the element as it is
       break;
-    case MODE_OFFLINE:
+    case MODE_READONLY:
     case MODE_STATIC:
     default:
       audioScreenshots = await screenshotElements(audios, page);
@@ -526,7 +527,7 @@ const saveEpub = async (page, mode, lang) => {
       // we need to adjust the height of gadget iframe
       await adjustHeightForElements(embeds, page);
       break;
-    case MODE_OFFLINE:
+    case MODE_READONLY:
     case MODE_STATIC:
     default:
       embedScreenshots = await screenshotElements(embeds, page);
@@ -542,13 +543,8 @@ const saveEpub = async (page, mode, lang) => {
   const introduction = {};
   try {
     // todo: parse title in appropriate language
-<<<<<<< HEAD
     introduction.title = 'Preface';
     introduction.data = await page.$eval(INTRODUCTION, el => el.innerHTML);
-=======
-    introduction.title = 'Introduction';
-    introduction.data = await page.$eval('.description', el => el.outerHTML);
->>>>>>> feat: add styles.css file, copy this file in dist when building
   } catch (err) {
     console.error('No preface found');
   }
@@ -557,25 +553,32 @@ const saveEpub = async (page, mode, lang) => {
   // use the export class to differentiate from tools content
   let body = await page.$$eval(
     SUBPAGES,
-    (phases, phaseTitlesSelector, resourcesSelector) =>
+    (
+      phases,
+      phaseTitlesSelector,
+      resourcesSelector,
+      phaseDescriptionsSelector
+    ) =>
       phases.map(phase => {
+        const content = phase.getElementsByClassName(resourcesSelector)[0]
+          .innerHTML;
 
-      const content = phase.getElementsByClassName(resourcesSelector)[0].innerHTML;
+        let description = phase.getElementsByClassName(
+          phaseDescriptionsSelector
+        )[0];
+        description = description ? description.outerHTML : '';
 
-      let description = phase.getElementsByClassName('description')[0];
-      description = description ? description.outerHTML : '';
-
-      return {
-        title: phase.getElementsByClassName(phaseTitlesSelector)[0].innerHTML,
-        data: description + content,
-      }
-      
-    }),
+        return {
+          title: phase.getElementsByClassName(phaseTitlesSelector)[0].innerHTML,
+          data: description + content,
+        };
+      }),
     PHASE_TITLES,
-    RESOURCES
-    );
+    RESOURCES,
+    PHASE_DESCRIPTIONS
+  );
 
-  if (mode === MODE_OFFLINE) {
+  if (mode === MODE_READONLY) {
     // decode & character because it was previously encoded by setAttribute for srcdoc attribute
     body = body.map(phase => ({
       title: phase.title,
