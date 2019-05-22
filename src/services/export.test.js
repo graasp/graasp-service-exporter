@@ -13,7 +13,7 @@ const initPuppeteer = async () => {
     timeout: 0,
   });
   page = await browser.newPage();
-  await page.goto(`file://${__dirname}/export.html`);
+  await page.goto(`file://${__dirname}/export.test.html`);
   return { browser, page };
 };
 

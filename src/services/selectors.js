@@ -10,6 +10,7 @@ const OBJECT_ELEMENTS = 'app-subpage-resource object';
 const OFFLINE_READY_IFRAMES = '//*[@data-offline-support]/iframe'; // use xpath to obtain app-gateway-resource and app-app-graasp-app-resource iframes
 const META_DOWNLOAD = 'meta[name=download]';
 const PASSWORD = '#password';
+const PHASE_DESCRIPTIONS = 'description';
 const PHASE_TITLES = 'name';
 const RESOURCES = 'resources';
 const SPACE_TITLE = 'div.header > h1';
@@ -31,6 +32,7 @@ export {
   OBJECT_ELEMENTS,
   OFFLINE_READY_IFRAMES,
   PASSWORD,
+  PHASE_DESCRIPTIONS,
   PHASE_TITLES,
   RESOURCES,
   SPACE_TITLE,

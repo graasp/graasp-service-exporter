@@ -52,7 +52,7 @@ export const TIMEOUT = 60000;
 export const DEFAULT_LANGUAGE = 'en';
 
 export const MODE_STATIC = 'static';
-export const MODE_OFFLINE = 'read-only';
+export const MODE_READONLY = 'read-only';
 export const MODE_INTERACTIVE = 'interactive';
 
 export const COVER_PATH = `${TMP_FOLDER}/cover.jpg`;
@@ -62,3 +62,5 @@ export const COVER_DEFAULT_PATH =
 export const BACKGROUND_COLOR = 'white';
 export const FONT = 'Arial';
 export const FONT_COLOR = 'black';
+
+export const CSS_STYLES_FILE = path.join(__dirname, 'services/css/styles.css');
