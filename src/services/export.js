@@ -244,17 +244,22 @@ const makeImageSourcesAbsolute = (imgs, host) => {
 };
 
 const makeElementLinkAbsolute = (el, attrName, baseUrl) => {
-  const url = el.getAttribute(attrName);
-  if (url) {
-    // replace link with absolute base url
-    if (url.startsWith('./')) {
-      const newUrl = baseUrl + url.substring(2);
-      el.setAttribute(attrName, newUrl);
-    }
-    // make link url absolute
-    else if (url.startsWith('//')) {
-      const newUrl = `https:${url}`;
-      el.setAttribute(attrName, newUrl);
+  if (!baseUrl.endsWith('/') || !baseUrl.startsWith('http')) {
+    throw Error('base url is not valid');
+  }
+  if (el) {
+    const url = el.getAttribute(attrName);
+    if (url) {
+      if (url.startsWith('./')) {
+        const newUrl = baseUrl + url.substring(2);
+        el.setAttribute(attrName, newUrl);
+      } else if (url.startsWith('//')) {
+        const newUrl = `https:${url}`;
+        el.setAttribute(attrName, newUrl);
+      } else if (!url.startsWith('http')) {
+        const newUrl = baseUrl + url;
+        el.setAttribute(attrName, newUrl);
+      }
     }
   }
 };
@@ -303,13 +308,24 @@ const retrieveUrls = async (iframes, page) => {
   return urls;
 };
 
-const retrieveBaseUrl = baseElement => {
-  let url = baseElement.getAttribute('href');
-  if (url === null) {
-    url = 'https://';
-  } else if (url.startsWith('//')) {
-    url = `https:${url.substring(1)}`;
+const retrieveBaseUrl = (baseElement, host) => {
+  let url = 'https://';
+  if (baseElement) {
+    url = baseElement.getAttribute('href');
+    if (url === null || url === '') {
+      url = 'https://';
+    } else if (url.startsWith('//')) {
+      url = `https:${url}`;
+    } else if (url.startsWith('/')) {
+      url = `${host}${url}`;
+    }
+
+    // add an ending slash if necessary
+    if (!url.endsWith('/')) {
+      url += '/';
+    }
   }
+
   return url;
 };
 
@@ -346,8 +362,8 @@ const retrieveContentBasedOnLanguage = async (url, lang) => {
 const replaceSrcWithSrcdocInIframe = async (elements, page, lang) => {
   Logger.debug('replace iframes src with srcdoc content');
 
-  // Here you can use few identifying methods like url(),name(),title()
-  const mainBaseUrl = await page.$eval(BASE, retrieveBaseUrl);
+  // retrieve base url, and prepare it with necessary
+  const mainBaseUrl = await page.$eval(BASE, retrieveBaseUrl, GRAASP_HOST);
   await prepareIframes(elements, 'src', mainBaseUrl, page);
 
   // wait for iframes to reload
@@ -488,9 +504,9 @@ const saveEpub = async (page, mode, lang) => {
   let audioScreenshots = [];
   switch (mode) {
     case MODE_INTERACTIVE:
-    case MODE_OFFLINE:
       // we let the element as it is
       break;
+    case MODE_OFFLINE:
     case MODE_STATIC:
     default:
       audioScreenshots = await screenshotElements(audios, page);
@@ -521,19 +537,23 @@ const saveEpub = async (page, mode, lang) => {
   const introduction = {};
   try {
     // todo: parse title in appropriate language
-    introduction.title = 'Introduction';
+    introduction.title = 'Preface';
     introduction.data = await page.$eval(INTRODUCTION, el => el.innerHTML);
   } catch (err) {
-    console.error(err);
+    console.error('No preface found');
   }
 
   // get body for epub
   // use the export class to differentiate from tools content
-  let body = await page.$$eval(SUBPAGES, phases =>
-    phases.map(phase => ({
-      title: phase.getElementsByClassName(PHASE_TITLES)[0].innerHTML,
-      data: phase.getElementsByClassName(RESOURCES)[0].innerHTML,
-    }))
+  let body = await page.$$eval(
+    SUBPAGES,
+    (phases, phaseTitlesSelector, resourcesSelector) =>
+      phases.map(phase => ({
+        title: phase.getElementsByClassName(phaseTitlesSelector)[0].innerHTML,
+        data: phase.getElementsByClassName(resourcesSelector)[0].innerHTML,
+      })),
+    PHASE_TITLES,
+    RESOURCES
   );
 
   if (mode === MODE_OFFLINE) {
@@ -792,4 +812,10 @@ const isReady = fileId =>
     });
   });
 
-export { convertSpaceToFile, upload, isReady };
+export {
+  convertSpaceToFile,
+  upload,
+  isReady,
+  makeElementLinkAbsolute,
+  retrieveBaseUrl,
+};
