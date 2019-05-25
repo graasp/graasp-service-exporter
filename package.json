@@ -12,7 +12,7 @@
   "license": "MIT",
   "private": true,
   "scripts": {
-    "build": "babel src -d dist && mkdir -p dist/tmp && mkdir -p dist/services/css && cpy 'src/services/css/styles.css' 'dist/services/css/' ",
+    "build": "babel src -d dist && mkdir -p dist/tmp && mkdir -p dist/services/css && cpy 'src/services/css/*.css' 'dist/services/css/' ",
     "test": "echo \"warning: no tests specified\" && exit 0",
     "lint": "eslint .",
     "start": "yarn start:local",
