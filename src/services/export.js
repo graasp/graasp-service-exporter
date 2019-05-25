@@ -65,21 +65,11 @@ const generateRandomString = () =>
 const generateEpub = async ({
   title = 'Untitled',
   author = 'Anonymous',
+  username = 'Anonymous',
   chapters = [],
   background,
   screenshots,
 }) => {
-  // generate cover image
-  // @TODO refactor cover data (date, student name)
-  Logger.debug('Generating cover image');
-  const metadata = {
-    Publisher: 'Graasp',
-    Date: '3/02/39',
-    'Student Name': 'name',
-  };
-  // we wait for the cover image because it loads asynchronously the bakground image file
-  await coverImage(background, title, author, metadata);
-
   Logger.debug('generating epub');
   // main options
   const main = {
@@ -88,6 +78,17 @@ const generateEpub = async ({
     publisher: 'Graasp',
     cover: COVER_PATH,
   };
+
+  // generate cover image
+  // @TODO refactor cover data (date, student name)
+  Logger.debug('Generating cover image');
+  const metadata = {
+    date: new Date(),
+    username,
+    publisher: main.publisher,
+  };
+  // we wait for the cover image because it loads asynchronously the bakground image file
+  await coverImage(background, title, author, metadata);
 
   // make sure that all content sections have data
   const content = chapters.filter(chapter => chapter.title && chapter.data);
@@ -402,7 +403,7 @@ const replaceSrcWithSrcdocInIframe = async (elements, page, lang) => {
   await addSrcdocWithContentToIframes(elements, iframesSrcdoc, page);
 };
 
-const saveEpub = async (page, mode, lang) => {
+const saveEpub = async (page, mode, lang, username) => {
   Logger.debug(`saving epub in ${mode} mode`);
   // get title
   let title = 'Untitled';
@@ -431,7 +432,6 @@ const saveEpub = async (page, mode, lang) => {
     if (!(background instanceof String) && typeof background !== 'string') {
       background = COVER_DEFAULT_PATH;
     }
-    Logger.debug(`-----------------${background}`);
   } catch (err) {
     console.error(err);
   }
@@ -612,18 +612,19 @@ const saveEpub = async (page, mode, lang) => {
   return generateEpub({
     title,
     author,
+    username,
     chapters,
     background,
     screenshots,
   });
 };
 
-const formatSpace = async (page, format, mode, lang) => {
+const formatSpace = async (page, format, mode, lang, username) => {
   Logger.debug('formatting space');
   switch (format) {
     case 'epub':
       // generate epub
-      return saveEpub(page, mode, lang);
+      return saveEpub(page, mode, lang, username);
     case 'png':
       // print screenshot
       return page.screenshot({
@@ -741,7 +742,7 @@ const scrape = async ({
 
     // wait five more seconds just in case, mainly to wait for iframes to load
     await page.waitFor(5000);
-    const formattedPage = await formatSpace(page, format, mode, lang);
+    const formattedPage = await formatSpace(page, format, mode, lang, username);
     await browser.close();
     setTimeout(() => chrome.instance.kill(), 0);
     return formattedPage;

@@ -43,6 +43,7 @@
     "canvas": "2.4.1",
     "cheerio": "1.0.0-rc.3",
     "cpy-cli": "2.0.0",
+    "dateformat": "3.0.3",
     "epub-gen": "https://github.com/graasp/epub-gen",
     "html-entities": "1.2.1",
     "puppeteer": "1.13.0",
