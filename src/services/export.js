@@ -160,7 +160,7 @@ const retrieveBaseUrl = async (baseElement, host) => {
   if (baseElement) {
     url = await (await baseElement.getProperty('href')).jsonValue();
 
-    // cases which might happen because of puppeteer extraction
+    // cases which might happen because of getting a property (=/= attribute)
     if (url.startsWith('file:///')) {
       url = 'https://';
     } else if (url.startsWith('file://')) {
@@ -266,10 +266,16 @@ const makeElementsLinkAbsolute = async (elements, attrName, baseUrl, page) => {
   }
 };
 
+// creating a new element does not throw an error (setAttribute do)
 const addSrcdocWithContentToIframe = (iframe, contents) => {
+  // this function runs inside the dom so document will be defined
+  // eslint-disable-next-line no-undef
+  const newIframe = document.createElement('iframe');
   const src = iframe.getAttribute('src');
-  iframe.setAttribute('srcdoc', contents[src]);
-  iframe.removeAttribute('src');
+  newIframe.srcdoc = contents[src];
+  newIframe.style.height = iframe.style.height;
+  iframe.after(newIframe);
+  iframe.remove();
 };
 
 const addSrcdocWithContentToIframes = async (iframes, contents, page) => {
@@ -457,15 +463,15 @@ const handleOfflineLabs = async (page, mode, lang, baseUrl) => {
   }
 
   // this code here is to handle the exception from offline labs
-  try {
-    await page.waitForSelector('body', {
-      timeout: ELEMENTS_TIMEOUT,
-    });
-  } catch (error) {
-    // if(error instanceof puppeteerErrors.TimeoutError) {
-    Logger.debug('error catched');
-    // }
-  }
+  // try {
+  //   await page.waitForSelector('body', {
+  //     timeout: ELEMENTS_TIMEOUT,
+  //   });
+  // } catch (error) {
+  //   // if(error instanceof puppeteerErrors.TimeoutError) {
+  //   Logger.debug('error catched');
+  //   // }
+  // }
 
   return offlineIframeScreenshots;
 };
@@ -760,7 +766,7 @@ const saveEpub = async (page, mode, lang, username) => {
     );
 
     if (mode === MODE_READONLY || mode === MODE_INTERACTIVE) {
-      // decode & character because it was previously encoded by setAttribute for srcdoc attribute
+      // decode & character because it was previously encoded when set to srcdoc attribute
       body = body.map(phase => ({
         title: phase.title,
         data: phase.data.replace(/&amp;(?=([1-9]|[a-zA-Z]){1,6};)/g, '&'),
