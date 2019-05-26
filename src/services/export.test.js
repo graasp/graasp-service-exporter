@@ -1,10 +1,36 @@
 import Puppeteer from 'puppeteer';
-import { makeElementLinkAbsolute, retrieveBaseUrl } from './export';
+import { evalMakeElementLinkAbsolute } from './utils';
+import {
+  GRAASP_HOST,
+  MODE_INTERACTIVE,
+  MODE_READONLY,
+  MODE_STATIC,
+} from '../config';
+import {
+  retrieveBaseUrl,
+  handleApps,
+  handleAudios,
+  handleGadgets,
+  handleLabs,
+  handleVideos,
+} from './export';
+import {
+  APP_ELEMENTS,
+  AUDIOS,
+  GADGETS,
+  LAB_ELEMENTS,
+  VIDEOS,
+} from './selectors';
 
 let browser;
 let page;
+let pageStatic;
+let pageReadOnly;
+let pageInteractive;
+const timeout = 1000;
+const HOST = GRAASP_HOST;
 
-const initPuppeteer = async () => {
+const initBrowser = async () => {
   // set jest timeout
   jest.setTimeout(10000);
 
@@ -12,9 +38,24 @@ const initPuppeteer = async () => {
     args: ['--no-sandbox', '--disable-setuid-sandbox'],
     timeout: 0,
   });
+};
+
+const initPuppeteer = async () => {
+  await initBrowser();
   page = await browser.newPage();
   await page.goto(`file://${__dirname}/export.test.html`);
-  return { browser, page };
+};
+
+const initPuppeteerWithMode = async () => {
+  await initBrowser();
+  pageStatic = await browser.newPage();
+  await pageStatic.goto(`file://${__dirname}/export_static.test.html`);
+  pageReadOnly = await browser.newPage();
+  await pageReadOnly.goto(`file://${__dirname}/export_readonly.test.html`);
+  pageInteractive = await browser.newPage();
+  await pageInteractive.goto(
+    `file://${__dirname}/export_interactive.test.html`
+  );
 };
 
 const closePuppeteer = async () => {
@@ -26,9 +67,153 @@ const getSrcValue = async element => {
   return value;
 };
 
+describe('handleAudios', () => {
+  beforeAll(async () => {
+    await initPuppeteerWithMode();
+  });
+
+  afterAll(async () => {
+    await closePuppeteer();
+  });
+
+  it('interactive: audios remain', async () => {
+    await handleAudios(pageInteractive, MODE_INTERACTIVE);
+    await pageInteractive.waitFor(timeout);
+    expect(pageInteractive.waitForXPath(AUDIOS)).resolves.not.toThrow();
+  });
+
+  it('read-only: audios become screenshots', async () => {
+    await handleAudios(pageReadOnly, MODE_READONLY);
+    await pageReadOnly.waitFor(timeout);
+    expect(pageReadOnly.waitForXPath(AUDIOS)).rejects.toThrow();
+  });
+
+  it('static: audios become screenshots', async () => {
+    await handleAudios(pageStatic, MODE_STATIC);
+    await pageStatic.waitFor(timeout);
+    expect(pageStatic.waitForXPath(AUDIOS)).rejects.toThrow();
+  });
+});
+
+describe('handleVideos', () => {
+  beforeAll(async () => {
+    await initPuppeteerWithMode();
+  });
+
+  afterAll(async () => {
+    await closePuppeteer();
+  });
+
+  it('interactive: videos remain', async () => {
+    await handleVideos(pageInteractive, MODE_INTERACTIVE);
+    await pageInteractive.waitFor(timeout);
+    expect(pageInteractive.waitForSelector(VIDEOS)).resolves.not.toThrow();
+  });
+
+  it('read-only: videos become screenshots', async () => {
+    await handleVideos(pageReadOnly, MODE_READONLY);
+    await pageReadOnly.waitFor(timeout);
+    expect(pageReadOnly.waitForSelector(VIDEOS)).rejects.toThrow();
+  });
+
+  it('static: videos become screenshots', async () => {
+    await handleVideos(pageStatic, MODE_STATIC);
+    await pageStatic.waitFor(timeout);
+    expect(pageStatic.waitForSelector(VIDEOS)).rejects.toThrow();
+  });
+});
+
+describe('handleLabs', () => {
+  beforeAll(async () => {
+    await initPuppeteerWithMode();
+  });
+
+  afterAll(async () => {
+    await closePuppeteer();
+  });
+
+  it('interactive: labs remain', async () => {
+    await handleLabs(pageInteractive, MODE_INTERACTIVE);
+    await pageInteractive.waitFor(timeout);
+    expect(
+      pageInteractive.waitForSelector(LAB_ELEMENTS)
+    ).resolves.not.toThrow();
+  });
+
+  it('read-only: labs become screenshots', async () => {
+    await handleLabs(pageReadOnly, MODE_READONLY);
+    await pageReadOnly.waitFor(timeout);
+    expect(pageReadOnly.waitForSelector(LAB_ELEMENTS)).rejects.toThrow();
+  });
+
+  it('static: labs become screenshots', async () => {
+    await handleLabs(pageStatic, MODE_STATIC);
+    await pageStatic.waitFor(timeout);
+    expect(pageStatic.waitForSelector(LAB_ELEMENTS)).rejects.toThrow();
+  });
+});
+
+describe('handleGadgets', () => {
+  beforeAll(async () => {
+    await initPuppeteerWithMode();
+  });
+
+  afterAll(async () => {
+    await closePuppeteer();
+  });
+
+  it('interactive: labs remain', async () => {
+    await handleGadgets(pageInteractive, MODE_INTERACTIVE);
+    await pageInteractive.waitFor(timeout);
+    expect(pageInteractive.waitForSelector(GADGETS)).resolves.not.toThrow();
+  });
+
+  it('read-only: labs become screenshots', async () => {
+    await handleGadgets(pageReadOnly, MODE_READONLY);
+    await pageReadOnly.waitFor(timeout);
+    expect(pageReadOnly.waitForSelector(GADGETS)).rejects.toThrow();
+  });
+
+  it('static: labs become screenshots', async () => {
+    await handleGadgets(pageStatic, MODE_STATIC);
+    await pageStatic.waitFor(timeout);
+    expect(pageStatic.waitForSelector(GADGETS)).rejects.toThrow();
+  });
+});
+
+describe('handleApps', () => {
+  beforeAll(async () => {
+    await initPuppeteerWithMode();
+  });
+
+  afterAll(async () => {
+    await closePuppeteer();
+  });
+
+  it('interactive: apps remain', async () => {
+    await handleApps(pageInteractive, MODE_INTERACTIVE);
+    await pageInteractive.waitFor(timeout);
+    expect(
+      pageInteractive.waitForSelector(APP_ELEMENTS)
+    ).resolves.not.toThrow();
+  });
+
+  it('read-only: apps become screenshots', async () => {
+    await handleApps(pageReadOnly, MODE_READONLY);
+    await pageReadOnly.waitFor(timeout);
+    expect(pageReadOnly.waitForSelector(APP_ELEMENTS)).rejects.toThrow();
+  });
+
+  it('static: apps become screenshots', async () => {
+    await handleApps(pageStatic, MODE_STATIC);
+    await pageStatic.waitFor(timeout);
+    expect(pageStatic.waitForSelector(APP_ELEMENTS)).rejects.toThrow();
+  });
+});
+
 describe('makeElementLinkAbsolute', () => {
   beforeAll(async () => {
-    ({ browser, page } = await initPuppeteer());
+    await initPuppeteer();
   });
 
   afterAll(async () => {
@@ -42,7 +227,7 @@ describe('makeElementLinkAbsolute', () => {
   ) => {
     const iframe = await page.$(selector);
 
-    await page.evaluate(makeElementLinkAbsolute, iframe, 'src', baseUrl);
+    await evalMakeElementLinkAbsolute(page, iframe, 'src', baseUrl);
     const url = await getSrcValue(iframe);
 
     expect(url).toMatch(resultUrl);
@@ -51,12 +236,7 @@ describe('makeElementLinkAbsolute', () => {
   it('if attrName is empty, src url stays unchanged', async () => {
     const iframe = await page.$('#iframe-https');
 
-    await page.evaluate(
-      makeElementLinkAbsolute,
-      iframe,
-      '',
-      'https://example.com/'
-    );
+    await evalMakeElementLinkAbsolute(page, iframe, '', 'https://example.com/');
     const url = await getSrcValue(iframe);
 
     expect(url).toMatch('https://example.com/');
@@ -66,7 +246,7 @@ describe('makeElementLinkAbsolute', () => {
     const el = await page.$('no-selector');
 
     expect(
-      page.evaluate(makeElementLinkAbsolute, el, 'src', 'https://example.com/')
+      evalMakeElementLinkAbsolute(page, el, 'src', 'https://example.com/')
     ).resolves.not.toThrow();
   });
 
@@ -90,12 +270,7 @@ describe('makeElementLinkAbsolute', () => {
     const iframe = await page.$('#iframe-https');
 
     expect(
-      page.evaluate(
-        makeElementLinkAbsolute,
-        iframe,
-        'src',
-        'https:/example.com'
-      )
+      evalMakeElementLinkAbsolute(page, iframe, 'src', 'https:/example.com')
     ).rejects.toThrow();
   });
 
@@ -103,7 +278,7 @@ describe('makeElementLinkAbsolute', () => {
     const iframe = await page.$('#iframe-https');
 
     expect(
-      page.evaluate(makeElementLinkAbsolute, iframe, 'src', 'example.com/')
+      evalMakeElementLinkAbsolute(page, iframe, 'src', 'example.com/')
     ).rejects.toThrow();
   });
 
@@ -134,7 +309,7 @@ describe('makeElementLinkAbsolute', () => {
 
 describe('retrieveBaseUrl', () => {
   beforeAll(async () => {
-    ({ browser, page } = await initPuppeteer());
+    await initPuppeteer();
   });
 
   afterAll(async () => {
@@ -144,7 +319,7 @@ describe('retrieveBaseUrl', () => {
   const evaluateRetrieveBaseUrl = async (selector, returnValue) => {
     const base = await page.$(selector);
 
-    const href = await page.evaluate(retrieveBaseUrl, base);
+    const href = await retrieveBaseUrl(base, HOST);
     expect(href).toMatch(returnValue);
   };
 
