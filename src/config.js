@@ -40,6 +40,8 @@ export {
   AUTH_TYPE_HOST,
 };
 
+export const VIEWPORT_WIDTH = 1200;
+
 export const SUPPORTED_FORMATS = ['pdf', 'png', 'epub'];
 export const PENDING_STATUS = 'pending';
 export const EXPORT_TOPIC = `export-${STAGE}`;
@@ -48,7 +50,7 @@ export const AUTH_TYPE_ANONYMOUS = 'local-contextual-anonymous';
 export const AUTH_TYPE_USERNAME = 'local-contextual-username';
 export const AUTH_TYPE_PASSWORD = 'local-contextual-username-password';
 export const TIMEOUT = 60000;
-export const ELEMENTS_TIMEOUT = 2000;
+export const ELEMENTS_TIMEOUT = 1500;
 
 export const DEFAULT_LANGUAGE = 'en';
 

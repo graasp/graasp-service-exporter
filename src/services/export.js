@@ -26,6 +26,7 @@ import {
   MODE_STATIC,
   DEFAULT_LANGUAGE,
   CSS_STYLES_FILE,
+  VIEWPORT_WIDTH,
 } from '../config';
 import Logger from '../utils/Logger';
 import getChrome from '../utils/getChrome';
@@ -47,6 +48,7 @@ import {
   PHASE_DESCRIPTIONS,
   PHASE_TITLES,
   RESOURCES,
+  ROOT,
   SPACE_TITLE,
   SUBPAGES,
   TOOLS,
@@ -204,7 +206,11 @@ const screenshotElements = async (elements, page) => {
     // save screenshot with id as filename
     const path = `${TMP_FOLDER}/${id}.png`;
     // eslint-disable-next-line no-await-in-loop
-    await element.screenshot({ path });
+    await element.screenshot({
+      path,
+      // eslint-disable-next-line no-await-in-loop
+      clip: await element.boundingBox(),
+    });
     paths.push(path);
   }
   return paths;
@@ -879,7 +885,7 @@ const scrape = async ({
 
     // todo: factor out viewport dims
     await page.setViewport({
-      width: 1200,
+      width: VIEWPORT_WIDTH,
       height: 1200,
     });
 
@@ -944,8 +950,17 @@ const scrape = async ({
         Logger.info('cookie message present', err);
       } */
 
-    // wait six more seconds just in case, mainly to wait for iframes to load
-    await page.waitFor(6000);
+    // wait three more seconds just in case, mainly to wait for iframes to load
+    await page.waitFor(3000);
+
+    // reset the viewport for screenshots visiblity
+    const body = await page.$(ROOT);
+    const maxHeight = Math.ceil((await body.boundingBox()).height);
+    await page.setViewport({
+      width: VIEWPORT_WIDTH,
+      height: maxHeight,
+    });
+
     const formattedPage = await formatSpace(page, format, mode, lang, username);
     await browser.close();
     setTimeout(() => chrome.instance.kill(), 0);

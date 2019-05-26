@@ -15,6 +15,7 @@ const PASSWORD = '#password';
 const PHASE_DESCRIPTIONS = 'section > .description';
 const PHASE_TITLES = '.name';
 const RESOURCES = '.resources';
+const ROOT = 'app-root';
 const SPACE_TITLE = 'div.header > h1';
 const SUBPAGES = 'app-subpage-content.export';
 const TOOLS = '.tools > section';
@@ -38,6 +39,7 @@ export {
   PHASE_DESCRIPTIONS,
   PHASE_TITLES,
   RESOURCES,
+  ROOT,
   SPACE_TITLE,
   SUBPAGES,
   TOOLS,
