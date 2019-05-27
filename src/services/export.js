@@ -1,4 +1,5 @@
 import Puppeteer from 'puppeteer';
+import puppeteerErrors from 'puppeteer/Errors';
 import Epub from 'epub-gen';
 import S3 from 'aws-sdk/clients/s3';
 import fs from 'fs';
@@ -17,6 +18,7 @@ import {
   AUTH_TYPE_PASSWORD,
   AUTH_TYPE_HOST,
   TIMEOUT,
+  ELEMENTS_TIMEOUT,
   COVER_DEFAULT_PATH,
   COVER_PATH,
   MODE_INTERACTIVE,
@@ -24,18 +26,19 @@ import {
   MODE_STATIC,
   DEFAULT_LANGUAGE,
   CSS_STYLES_FILE,
+  VIEWPORT_WIDTH,
 } from '../config';
 import Logger from '../utils/Logger';
 import getChrome from '../utils/getChrome';
 import isLambda from '../utils/isLambda';
 import coverImage from './cover';
 import {
-  AUDIO_ELEMENTS,
+  AUDIOS,
+  APP_ELEMENTS,
   BASE,
   EMBEDDED_ELEMENTS,
   GADGETS,
   HEADER,
-  IMAGES,
   INTRODUCTION,
   LAB_ELEMENTS,
   META_DOWNLOAD,
@@ -45,12 +48,22 @@ import {
   PHASE_DESCRIPTIONS,
   PHASE_TITLES,
   RESOURCES,
+  ROOT,
   SPACE_TITLE,
   SUBPAGES,
   TOOLS,
   UNSUPPORTED_ELEMENTS,
   USERNAME,
+  VIDEOS,
 } from './selectors';
+import {
+  evalAdjustElementHeight,
+  evalReplaceElementWithScreenshot,
+  evalGetSrcFromElement,
+  evalSetIdToElement,
+  getSubpagesContent,
+  makeElementLinkAbsolute,
+} from './utils';
 
 const s3 = new S3({
   s3ForcePathStyle: isLambda ? undefined : true,
@@ -65,21 +78,11 @@ const generateRandomString = () =>
 const generateEpub = async ({
   title = 'Untitled',
   author = 'Anonymous',
+  username = 'Anonymous',
   chapters = [],
   background,
   screenshots,
 }) => {
-  // generate cover image
-  // @TODO refactor cover data (date, student name)
-  Logger.debug('Generating cover image');
-  const metadata = {
-    Publisher: 'Graasp',
-    Date: '3/02/39',
-    'Student Name': 'name',
-  };
-  // we wait for the cover image because it loads asynchronously the bakground image file
-  await coverImage(background, title, author, metadata);
-
   Logger.debug('generating epub');
   // main options
   const main = {
@@ -88,6 +91,17 @@ const generateEpub = async ({
     publisher: 'Graasp',
     cover: COVER_PATH,
   };
+
+  // generate cover image
+  // @TODO refactor cover data (date, student name)
+  Logger.debug('Generating cover image');
+  const metadata = {
+    date: new Date(),
+    username,
+    publisher: main.publisher,
+  };
+  // we wait for the cover image because it loads asynchronously the bakground image file
+  await coverImage(background, title, author, metadata);
 
   // make sure that all content sections have data
   const content = chapters.filter(chapter => chapter.title && chapter.data);
@@ -143,6 +157,35 @@ const generateEpub = async ({
   );
 };
 
+const retrieveBaseUrl = async (baseElement, host) => {
+  let url = 'https://';
+  if (baseElement) {
+    url = await (await baseElement.getProperty('href')).jsonValue();
+
+    // cases which might happen because of getting a property (=/= attribute)
+    if (url.startsWith('file:///')) {
+      url = 'https://';
+    } else if (url.startsWith('file://')) {
+      url = url.slice(5);
+    }
+
+    if (url === null || url === '') {
+      url = 'https://';
+    } else if (url.startsWith('//')) {
+      url = `https:${url}`;
+    } else if (url.startsWith('/')) {
+      url = `${host}${url}`;
+    }
+
+    // add an ending slash if necessary
+    if (!url.endsWith('/')) {
+      url += '/';
+    }
+  }
+
+  return url;
+};
+
 const screenshotElements = async (elements, page) => {
   const paths = [];
   // using for-of-loop for readability when using await inside a loop
@@ -158,35 +201,19 @@ const screenshotElements = async (elements, page) => {
     if (!id || id === '') {
       id = generateRandomString();
       // eslint-disable-next-line no-await-in-loop
-      await page.evaluate(
-        (el, randomId) => {
-          el.setAttribute('id', randomId);
-        },
-        element,
-        id
-      );
+      await evalSetIdToElement(page, element, id);
     }
     // save screenshot with id as filename
     const path = `${TMP_FOLDER}/${id}.png`;
     // eslint-disable-next-line no-await-in-loop
-    await element.screenshot({ path });
+    await element.screenshot({
+      path,
+      // eslint-disable-next-line no-await-in-loop
+      clip: await element.boundingBox(),
+    });
     paths.push(path);
   }
   return paths;
-};
-
-const replaceElementWithScreenshot = (el, path) => {
-  const id = el.getAttribute('id');
-  if (!id) {
-    throw Error(`element ${el} has no id`);
-  }
-  // this function runs inside the dom so document will be defined
-  // eslint-disable-next-line no-undef
-  const img = document.createElement('img');
-  img.src = `${path}/${id}.png`;
-  img.alt = el.getAttribute('title');
-  el.after(img);
-  el.remove();
 };
 
 const replaceElementsWithScreenshots = async (elements, page) => {
@@ -198,14 +225,8 @@ const replaceElementsWithScreenshots = async (elements, page) => {
   // eslint-disable-next-line no-restricted-syntax
   for (const element of elements) {
     // eslint-disable-next-line no-await-in-loop
-    await page.evaluate(replaceElementWithScreenshot, element, TMP_FOLDER);
+    await evalReplaceElementWithScreenshot(page, element, TMP_FOLDER);
   }
-};
-
-/* eslint no-param-reassign: ["error", { "props": true, "ignorePropertyModificationsFor": ["el"] }] */
-const adjustElementHeight = el => {
-  const height = el.clientHeight;
-  el.style.height = `${height}px`;
 };
 
 const adjustHeightForElements = async (elements, page) => {
@@ -216,7 +237,7 @@ const adjustHeightForElements = async (elements, page) => {
   // eslint-disable-next-line no-restricted-syntax
   for (const element of elements) {
     // eslint-disable-next-line no-await-in-loop
-    await page.evaluate(adjustElementHeight, element);
+    await evalAdjustElementHeight(page, element);
   }
 };
 
@@ -224,68 +245,43 @@ const adjustHeightForElements = async (elements, page) => {
 // function until the following issue is solved
 // http://bit.ly/2HIyUZQ
 const getBackground = (el, host) => {
-  const backgroundUrl = el.dataset.backgroundImage;
+  let backgroundUrl = el.dataset.backgroundImage;
   if (backgroundUrl) {
-    if (backgroundUrl.startsWith('//')) {
-      return `https:${backgroundUrl}`;
+    if (backgroundUrl.startsWith('./')) {
+      backgroundUrl = host + backgroundUrl.substring(2);
+    } else if (backgroundUrl.startsWith('//')) {
+      backgroundUrl = `https:${backgroundUrl}`;
+    } else if (!backgroundUrl.startsWith('http')) {
+      backgroundUrl = host + backgroundUrl;
     }
-    if (!backgroundUrl.startsWith('http')) {
-      return host + backgroundUrl;
-    }
+
     return backgroundUrl;
   }
   return null;
 };
 
-// note: cannot use async/await syntax in this
-// function until the following issue is solved
-// http://bit.ly/2HIyUZQ
-const makeImageSourcesAbsolute = (imgs, host) => {
-  imgs.forEach(img => {
-    const imgSrc = img.getAttribute('src');
-    if (!(imgSrc.startsWith('//') || imgSrc.startsWith('http'))) {
-      img.setAttribute('src', host + imgSrc);
-    }
-  });
-};
-
-const makeElementLinkAbsolute = (el, attrName, baseUrl) => {
-  if (!baseUrl.endsWith('/') || !baseUrl.startsWith('http')) {
-    throw Error('base url is not valid');
-  }
-  if (el) {
-    const url = el.getAttribute(attrName);
-    if (url) {
-      if (url.startsWith('./')) {
-        const newUrl = baseUrl + url.substring(2);
-        el.setAttribute(attrName, newUrl);
-      } else if (url.startsWith('//')) {
-        const newUrl = `https:${url}`;
-        el.setAttribute(attrName, newUrl);
-      } else if (!url.startsWith('http')) {
-        const newUrl = baseUrl + url;
-        el.setAttribute(attrName, newUrl);
-      }
-    }
-  }
-};
-
-const prepareIframes = async (iframes, attrName, baseUrl, page) => {
+const makeElementsLinkAbsolute = async (elements, attrName, baseUrl, page) => {
   // using for-of-loop for readability when using await inside a loop
   // where await is needed due to requirement of sequential steps
   // check for discussion: http://bit.ly/2JcMMLk
   // eslint-disable-next-line no-restricted-syntax
-  for (const iframe of iframes) {
+  for (const element of elements) {
     // make absolute iframe url
     // eslint-disable-next-line no-await-in-loop
-    await page.evaluate(makeElementLinkAbsolute, iframe, attrName, baseUrl);
+    await page.evaluate(makeElementLinkAbsolute, element, attrName, baseUrl);
   }
 };
 
+// creating a new element does not throw an error (setAttribute do)
 const addSrcdocWithContentToIframe = (iframe, contents) => {
+  // this function runs inside the dom so document will be defined
+  // eslint-disable-next-line no-undef
+  const newIframe = document.createElement('iframe');
   const src = iframe.getAttribute('src');
-  iframe.setAttribute('srcdoc', contents[src]);
-  iframe.removeAttribute('src');
+  newIframe.srcdoc = contents[src];
+  newIframe.style.height = iframe.style.height;
+  iframe.after(newIframe);
+  iframe.remove();
 };
 
 const addSrcdocWithContentToIframes = async (iframes, contents, page) => {
@@ -308,31 +304,10 @@ const retrieveUrls = async (iframes, page) => {
   // eslint-disable-next-line no-restricted-syntax
   for (const iframe of iframes) {
     // eslint-disable-next-line no-await-in-loop
-    const url = await page.evaluate(i => i.getAttribute('src'), iframe);
+    const url = await evalGetSrcFromElement(page, iframe);
     urls.push(url);
   }
   return urls;
-};
-
-const retrieveBaseUrl = (baseElement, host) => {
-  let url = 'https://';
-  if (baseElement) {
-    url = baseElement.getAttribute('href');
-    if (url === null || url === '') {
-      url = 'https://';
-    } else if (url.startsWith('//')) {
-      url = `https:${url}`;
-    } else if (url.startsWith('/')) {
-      url = `${host}${url}`;
-    }
-
-    // add an ending slash if necessary
-    if (!url.endsWith('/')) {
-      url += '/';
-    }
-  }
-
-  return url;
 };
 
 const getDownloadUrl = async (content, lang) => {
@@ -365,19 +340,16 @@ const retrieveContentBasedOnLanguage = async (url, lang) => {
   return content;
 };
 
-const replaceSrcWithSrcdocInIframe = async (elements, page, lang) => {
+const replaceSrcWithSrcdocInIframe = async (elements, page, lang, baseUrl) => {
   Logger.debug('replace iframes src with srcdoc content');
 
-  // retrieve base url, and prepare it with necessary
-  const mainBaseUrl = await page.$eval(BASE, retrieveBaseUrl, GRAASP_HOST);
-  await prepareIframes(elements, 'src', mainBaseUrl, page);
+  await makeElementsLinkAbsolute(elements, 'src', baseUrl, page);
 
   // wait for iframes to reload
   await page.waitFor(4000);
 
   // obtain wanted iframe ids
-  const iframeUrls = await retrieveUrls(elements, page);
-  const urls = [...iframeUrls];
+  const urls = await retrieveUrls(elements, page);
 
   // collect all useful frames content
   const iframesSrcdoc = {};
@@ -402,19 +374,313 @@ const replaceSrcWithSrcdocInIframe = async (elements, page, lang) => {
   await addSrcdocWithContentToIframes(elements, iframesSrcdoc, page);
 };
 
-const saveEpub = async (page, mode, lang) => {
+const handleAudios = async (page, mode) => {
+  Logger.debug(`handling audios`);
+  let audioScreenshots = [];
+  try {
+    await page.waitForXPath(AUDIOS, {
+      timeout: ELEMENTS_TIMEOUT,
+    });
+    const audios = await page.$x(AUDIOS);
+    switch (mode) {
+      case MODE_INTERACTIVE:
+        // we let the element as it is
+        break;
+      case MODE_READONLY:
+      // falls through
+      case MODE_STATIC:
+      default:
+        audioScreenshots = await screenshotElements(audios, page);
+        await replaceElementsWithScreenshots(audios, page);
+    }
+  } catch (error) {
+    if (error instanceof puppeteerErrors.TimeoutError) {
+      Logger.debug('no audios found');
+    } else {
+      throw error;
+    }
+  }
+  return audioScreenshots;
+};
+
+const handleVideos = async (page, mode) => {
+  Logger.debug(`handling videos`);
+  let videoScreenshots = [];
+  try {
+    await page.waitForSelector(VIDEOS, {
+      timeout: ELEMENTS_TIMEOUT,
+    });
+    const videos = await page.$$(VIDEOS);
+    switch (mode) {
+      case MODE_INTERACTIVE:
+        // we let the element as it is
+        break;
+      case MODE_READONLY:
+      // falls through
+      case MODE_STATIC:
+      default:
+        videoScreenshots = await screenshotElements(videos, page);
+        await replaceElementsWithScreenshots(videos, page);
+    }
+  } catch (error) {
+    if (error instanceof puppeteerErrors.TimeoutError) {
+      Logger.debug('no videos found');
+    } else {
+      throw error;
+    }
+  }
+  return videoScreenshots;
+};
+
+const handleOfflineLabs = async (page, mode, lang, baseUrl) => {
+  Logger.debug(`handling offline labs`);
+  let offlineIframeScreenshots = [];
+  try {
+    await page.waitForSelector(OFFLINE_READY_IFRAMES, {
+      timeout: ELEMENTS_TIMEOUT,
+    });
+    const offlineIframes = await page.$$(OFFLINE_READY_IFRAMES);
+    switch (mode) {
+      case MODE_INTERACTIVE:
+      // @TODO: handle phet lab
+      // height is adjusted in the export view
+      // break;
+      // falls through
+      case MODE_READONLY:
+        // we need embed content in iframe srcdoc
+        await replaceSrcWithSrcdocInIframe(offlineIframes, page, lang, baseUrl);
+        // height is adjusted in the export view
+        break;
+      case MODE_STATIC:
+      default:
+        offlineIframeScreenshots = await screenshotElements(
+          offlineIframes,
+          page
+        );
+        await replaceElementsWithScreenshots(offlineIframes, page);
+    }
+  } catch (error) {
+    if (error instanceof puppeteerErrors.TimeoutError) {
+      Logger.debug('no offline labs found');
+    } else {
+      // Logger.debug('There is an error with offline labs');
+      throw error;
+    }
+  }
+
+  // this code here is to handle the exception from offline labs
+  // try {
+  //   await page.waitForSelector('body', {
+  //     timeout: ELEMENTS_TIMEOUT,
+  //   });
+  // } catch (error) {
+  //   // if(error instanceof puppeteerErrors.TimeoutError) {
+  //   Logger.debug('error catched');
+  //   // }
+  // }
+
+  return offlineIframeScreenshots;
+};
+
+const handleLabs = async (page, mode) => {
+  Logger.debug(`handling online labs`);
+  let labScreenshots = [];
+  try {
+    await page.waitForSelector(LAB_ELEMENTS, {
+      timeout: ELEMENTS_TIMEOUT,
+    });
+    const labs = await page.$$(LAB_ELEMENTS);
+    switch (mode) {
+      case MODE_INTERACTIVE:
+        // we need to adjust the height of iframe
+        await adjustHeightForElements(labs, page);
+        break;
+      case MODE_READONLY:
+      // falls through
+      case MODE_STATIC:
+      default:
+        labScreenshots = await screenshotElements(labs, page);
+        await replaceElementsWithScreenshots(labs, page);
+    }
+  } catch (error) {
+    if (error instanceof puppeteerErrors.TimeoutError) {
+      Logger.debug('no online labs found');
+    } else {
+      throw error;
+    }
+  }
+  return labScreenshots;
+};
+
+const handleApps = async (page, mode) => {
+  Logger.debug(`handling apps`);
+  let appScreenshots = [];
+  try {
+    await page.waitForSelector(APP_ELEMENTS, {
+      timeout: ELEMENTS_TIMEOUT,
+    });
+    const apps = await page.$$(APP_ELEMENTS);
+    switch (mode) {
+      case MODE_INTERACTIVE:
+        // we need to adjust the height of iframe
+        await adjustHeightForElements(apps, page);
+        break;
+      case MODE_READONLY:
+      // falls through
+      case MODE_STATIC:
+      default:
+        appScreenshots = await screenshotElements(apps, page);
+        await replaceElementsWithScreenshots(apps, page);
+    }
+  } catch (error) {
+    if (error instanceof puppeteerErrors.TimeoutError) {
+      Logger.debug('no apps found');
+    } else {
+      throw error;
+    }
+  }
+  return appScreenshots;
+};
+
+const handleGadgets = async (page, mode) => {
+  Logger.debug(`handling online gadgets`);
+  let gadgetScreenshots = [];
+  try {
+    await page.waitForSelector(GADGETS, {
+      timeout: ELEMENTS_TIMEOUT,
+    });
+    const gadgets = await page.$$(GADGETS);
+    switch (mode) {
+      case MODE_INTERACTIVE:
+        // we need to adjust the height of gadget iframe
+        await adjustHeightForElements(gadgets, page);
+        break;
+      case MODE_READONLY:
+      // falls through
+      case MODE_STATIC:
+      default:
+        gadgetScreenshots = await screenshotElements(gadgets, page);
+        await replaceElementsWithScreenshots(gadgets, page);
+    }
+  } catch (error) {
+    if (error instanceof puppeteerErrors.TimeoutError) {
+      Logger.debug('no online gadgets found');
+    } else {
+      throw error;
+    }
+  }
+  return gadgetScreenshots;
+};
+
+const handleObjects = async (page, mode) => {
+  Logger.debug(`handling objects (docs)`);
+  let objectScreenshots = [];
+  try {
+    await page.waitForSelector(OBJECT_ELEMENTS, {
+      timeout: ELEMENTS_TIMEOUT,
+    });
+    const objects = await page.$$(OBJECT_ELEMENTS);
+    switch (mode) {
+      case MODE_INTERACTIVE:
+      // @TODO : handle unauthorized response
+      // we need to adjust the height of gadget iframe
+      // await adjustHeightForElements(objects, page);
+      // break;
+      // falls through
+      case MODE_READONLY:
+      // falls through
+      case MODE_STATIC:
+      default:
+        objectScreenshots = await screenshotElements(objects, page);
+        await replaceElementsWithScreenshots(objects, page);
+    }
+  } catch (error) {
+    if (error instanceof puppeteerErrors.TimeoutError) {
+      Logger.debug('no objects (docs) found');
+    } else {
+      throw error;
+    }
+  }
+  return objectScreenshots;
+};
+
+const handleEmbedded = async (page, mode) => {
+  Logger.debug(`handling embedded elements`);
+  let embedScreenshots = [];
+  try {
+    await page.waitForSelector(EMBEDDED_ELEMENTS, {
+      timeout: ELEMENTS_TIMEOUT,
+    });
+    const embeds = await page.$$(EMBEDDED_ELEMENTS);
+    switch (mode) {
+      case MODE_INTERACTIVE:
+        // we need to adjust the height of gadget iframe
+        await adjustHeightForElements(embeds, page);
+        break;
+      case MODE_READONLY:
+      // falls through
+      case MODE_STATIC:
+      default:
+        embedScreenshots = await screenshotElements(embeds, page);
+        await replaceElementsWithScreenshots(embeds, page);
+    }
+  } catch (error) {
+    if (error instanceof puppeteerErrors.TimeoutError) {
+      Logger.debug('no embedded elements found');
+    } else {
+      throw error;
+    }
+  }
+  return embedScreenshots;
+};
+
+const handleUnsupported = async (page, mode) => {
+  Logger.debug(`handling unsupported elements`);
+  let unsupportedScreenshots = [];
+  try {
+    await page.waitForSelector(UNSUPPORTED_ELEMENTS, {
+      timeout: ELEMENTS_TIMEOUT,
+    });
+    const unsupported = await page.$$(UNSUPPORTED_ELEMENTS);
+    switch (mode) {
+      case MODE_INTERACTIVE:
+      // @TODO replace with a link ?
+      // falls through
+      case MODE_READONLY:
+      // falls through
+      case MODE_STATIC:
+      default:
+        unsupportedScreenshots = await screenshotElements(unsupported, page);
+        await replaceElementsWithScreenshots(unsupported, page);
+    }
+  } catch (error) {
+    if (error instanceof puppeteerErrors.TimeoutError) {
+      Logger.debug('no unsupported elements found');
+    } else {
+      throw error;
+    }
+  }
+  return unsupportedScreenshots;
+};
+
+const saveEpub = async (page, mode, lang, username) => {
   Logger.debug(`saving epub in ${mode} mode`);
   // get title
   let title = 'Untitled';
   try {
-    await page.waitForSelector(SPACE_TITLE, { timeout: 3000 });
+    await page.waitForSelector(SPACE_TITLE, { timeout: ELEMENTS_TIMEOUT });
     title = await page.$eval(SPACE_TITLE, el => el.innerHTML);
   } catch (titleErr) {
-    console.error(titleErr);
+    Logger.debug(titleErr);
   }
+
+  // retrieve base url, and prepare it with necessary
+  const baseElement = await page.$(BASE);
+  const baseUrl = await retrieveBaseUrl(baseElement, GRAASP_HOST);
 
   // @TODO get author element
   // get author
+  Logger.debug(`retrieve author`);
   const author = 'Anonymous';
   /*   try {
     const authorSelector = 'meta[name=author]';
@@ -425,205 +691,150 @@ const saveEpub = async (page, mode, lang) => {
   }
   */
   // get background to use as cover
+  Logger.debug(`retrieving background`);
   let background = COVER_DEFAULT_PATH;
   try {
-    background = await page.$eval(HEADER, getBackground, GRAASP_HOST);
+    await page.waitForSelector(HEADER, { timeout: ELEMENTS_TIMEOUT });
+    background = await page.$eval(HEADER, getBackground, baseUrl);
     if (!(background instanceof String) && typeof background !== 'string') {
       background = COVER_DEFAULT_PATH;
     }
-    Logger.debug(`-----------------${background}`);
   } catch (err) {
-    console.error(err);
+    Logger.debug(err);
   }
 
-  // replace relative images with absolute
-  await page.$$eval(IMAGES, makeImageSourcesAbsolute, GRAASP_HOST);
-
+  // epub-gen handle images by himself
   // screenshot replacements have to come after image src changes
 
-  // one file labs
-  const offlineIframes = await page.$x(OFFLINE_READY_IFRAMES);
-  let offlineIframeScreenshots = [];
-  switch (mode) {
-    case MODE_INTERACTIVE:
-      // we let the iframe as it is
-      // height is adjusted in the export view
-      break;
-    case MODE_READONLY:
-      // we need embed content in iframe srcdoc
-      await replaceSrcWithSrcdocInIframe(offlineIframes, page, lang);
-      // height is adjusted in the export view
-      break;
-    case MODE_STATIC:
-    default:
-      offlineIframeScreenshots = await screenshotElements(offlineIframes, page);
-      await replaceElementsWithScreenshots(offlineIframes, page);
-  }
+  // audio html5 elements
+  const audioScreenshots = await handleAudios(page, mode);
 
-  // gadgets
-  const gadgets = await page.$$(GADGETS);
-  let gadgetScreenshots = [];
-  switch (mode) {
-    case MODE_INTERACTIVE:
-      // we need to adjust the height of gadget iframe
-      await adjustHeightForElements(gadgets, page);
-      break;
-    case MODE_READONLY:
-    case MODE_STATIC:
-    default:
-      gadgetScreenshots = await screenshotElements(gadgets, page);
-      await replaceElementsWithScreenshots(gadgets, page);
-  }
+  // video html5 elements
+  const videoScreenshots = await handleVideos(page, mode);
 
   // gateaway labs
-  const labs = await page.$x(LAB_ELEMENTS);
-  let labScreenshots = [];
-  switch (mode) {
-    case MODE_INTERACTIVE:
-      // we need to adjust the height of gadget iframe
-      await adjustHeightForElements(labs, page);
-      break;
-    case MODE_READONLY:
-    case MODE_STATIC:
-    default:
-      labScreenshots = await screenshotElements(labs, page);
-      await replaceElementsWithScreenshots(labs, page);
-  }
+  const labScreenshots = await handleLabs(page, mode);
+
+  // apps
+  const appScreenshots = await handleApps(page, mode);
+
+  // gadgets
+  const gadgetScreenshots = await handleGadgets(page, mode);
 
   // object elements (graasp generated documents)
-  const objects = await page.$$(OBJECT_ELEMENTS);
-  let objectScreenshots = [];
-  switch (mode) {
-    case MODE_INTERACTIVE:
-      // we need to adjust the height of gadget iframe
-      await adjustHeightForElements(objects, page);
-      break;
-    case MODE_READONLY:
-    case MODE_STATIC:
-    default:
-      objectScreenshots = await screenshotElements(objects, page);
-      await replaceElementsWithScreenshots(objects, page);
-  }
-
-  // audio html5 elements
-  const audios = await page.$$(AUDIO_ELEMENTS);
-  let audioScreenshots = [];
-  switch (mode) {
-    case MODE_INTERACTIVE:
-      // we let the element as it is
-      break;
-    case MODE_READONLY:
-    case MODE_STATIC:
-    default:
-      audioScreenshots = await screenshotElements(audios, page);
-      await replaceElementsWithScreenshots(audios, page);
-  }
+  const objectScreenshots = await handleObjects(page, mode);
 
   // embedded html divs, including youtube videos
-  const embeds = await page.$$(EMBEDDED_ELEMENTS);
-  let embedScreenshots = [];
-  switch (mode) {
-    case MODE_INTERACTIVE:
-      // we need to adjust the height of gadget iframe
-      await adjustHeightForElements(embeds, page);
-      break;
-    case MODE_READONLY:
-    case MODE_STATIC:
-    default:
-      embedScreenshots = await screenshotElements(embeds, page);
-      await replaceElementsWithScreenshots(embeds, page);
-  }
+  const embedScreenshots = await handleEmbedded(page, mode);
+
+  // one file labs
+  const offlineIframeScreenshots = await handleOfflineLabs(
+    page,
+    mode,
+    lang,
+    baseUrl
+  );
 
   // replace download unspported div with screenshots
-  const unsupported = await page.$$(UNSUPPORTED_ELEMENTS);
-  const unsupportedScreenshots = await screenshotElements(unsupported, page);
-  await replaceElementsWithScreenshots(unsupported, page);
+  const unsupportedScreenshots = await handleUnsupported(page, mode);
 
   // get description if present and create introduction
   const introduction = {};
   try {
+    await page.waitForSelector(INTRODUCTION, {
+      timeout: ELEMENTS_TIMEOUT,
+    });
     // todo: parse title in appropriate language
     introduction.title = 'Preface';
-    introduction.data = await page.$eval(INTRODUCTION, el => el.innerHTML);
-  } catch (err) {
-    console.error('No preface found');
+    introduction.data = await page.$eval(INTRODUCTION, el => el.outerHTML);
+  } catch (error) {
+    if (error instanceof puppeteerErrors.TimeoutError) {
+      Logger.debug('no preface found');
+    } else {
+      throw error;
+    }
   }
 
   // get body for epub
   // use the export class to differentiate from tools content
-  let body = await page.$$eval(
-    SUBPAGES,
-    (
-      phases,
-      phaseTitlesSelector,
-      resourcesSelector,
-      phaseDescriptionsSelector
-    ) =>
-      phases.map(phase => {
-        const content = phase.getElementsByClassName(resourcesSelector)[0]
-          .innerHTML;
+  Logger.debug(`retrieving phase content`);
+  let body = [];
+  try {
+    await page.waitForSelector(SUBPAGES, {
+      timeout: ELEMENTS_TIMEOUT,
+    });
+    body = await page.$$eval(
+      SUBPAGES,
+      getSubpagesContent,
+      PHASE_TITLES,
+      RESOURCES,
+      PHASE_DESCRIPTIONS
+    );
 
-        let description = phase.getElementsByClassName(
-          phaseDescriptionsSelector
-        )[0];
-        description = description ? description.outerHTML : '';
-
-        return {
-          title: phase.getElementsByClassName(phaseTitlesSelector)[0].innerHTML,
-          data: description + content,
-        };
-      }),
-    PHASE_TITLES,
-    RESOURCES,
-    PHASE_DESCRIPTIONS
-  );
-
-  if (mode === MODE_READONLY) {
-    // decode & character because it was previously encoded by setAttribute for srcdoc attribute
-    body = body.map(phase => ({
-      title: phase.title,
-      data: phase.data.replace(/&amp;(?=([1-9]|[a-zA-Z]){1,6};)/g, '&'),
-    }));
+    if (mode === MODE_READONLY || mode === MODE_INTERACTIVE) {
+      // decode & character because it was previously encoded when set to srcdoc attribute
+      body = body.map(phase => ({
+        title: phase.title,
+        data: phase.data.replace(/&amp;(?=([1-9]|[a-zA-Z]){1,6};)/g, '&'),
+      }));
+    }
+  } catch (error) {
+    if (error instanceof puppeteerErrors.TimeoutError) {
+      Logger.debug('no phase found');
+    } else {
+      throw error;
+    }
   }
 
   // get tools for epub
+  Logger.debug(`retrieving tools section`);
   const tools = {};
   try {
+    await page.waitForSelector(TOOLS, {
+      timeout: ELEMENTS_TIMEOUT,
+    });
     // todo: parse title in appropriate language
     tools.title = 'Tools';
     tools.data = await page.$eval(TOOLS, el => el.innerHTML);
-  } catch (err) {
-    Logger.error(err);
+  } catch (error) {
+    if (error instanceof puppeteerErrors.TimeoutError) {
+      Logger.debug('no tools found');
+    } else {
+      throw error;
+    }
   }
 
   // concatenate introduction and body
   const chapters = [introduction, ...body, tools];
 
   const screenshots = [
+    ...appScreenshots,
     ...audioScreenshots,
-    ...gadgetScreenshots,
     ...embedScreenshots,
+    ...gadgetScreenshots,
     ...labScreenshots,
     ...objectScreenshots,
-    ...unsupportedScreenshots,
     ...offlineIframeScreenshots,
+    ...unsupportedScreenshots,
+    ...videoScreenshots,
   ];
   // prepare epub
   return generateEpub({
     title,
     author,
+    username,
     chapters,
     background,
     screenshots,
   });
 };
 
-const formatSpace = async (page, format, mode, lang) => {
+const formatSpace = async (page, format, mode, lang, username) => {
   Logger.debug('formatting space');
   switch (format) {
     case 'epub':
       // generate epub
-      return saveEpub(page, mode, lang);
+      return saveEpub(page, mode, lang, username);
     case 'png':
       // print screenshot
       return page.screenshot({
@@ -674,7 +885,7 @@ const scrape = async ({
 
     // todo: factor out viewport dims
     await page.setViewport({
-      width: 1200,
+      width: VIEWPORT_WIDTH,
       height: 1200,
     });
 
@@ -739,9 +950,18 @@ const scrape = async ({
         Logger.info('cookie message present', err);
       } */
 
-    // wait five more seconds just in case, mainly to wait for iframes to load
-    await page.waitFor(5000);
-    const formattedPage = await formatSpace(page, format, mode, lang);
+    // wait three more seconds just in case, mainly to wait for iframes to load
+    await page.waitFor(3000);
+
+    // reset the viewport for screenshots visiblity
+    const body = await page.$(ROOT);
+    const maxHeight = Math.ceil((await body.boundingBox()).height);
+    await page.setViewport({
+      width: VIEWPORT_WIDTH,
+      height: maxHeight,
+    });
+
+    const formattedPage = await formatSpace(page, format, mode, lang, username);
     await browser.close();
     setTimeout(() => chrome.instance.kill(), 0);
     return formattedPage;
@@ -838,6 +1058,14 @@ export {
   convertSpaceToFile,
   upload,
   isReady,
+  adjustHeightForElements,
+  handleApps,
+  handleAudios,
+  handleEmbedded,
+  handleGadgets,
+  handleLabs,
+  handleObjects,
+  handleVideos,
   makeElementLinkAbsolute,
   retrieveBaseUrl,
 };

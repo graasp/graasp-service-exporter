@@ -1,5 +1,13 @@
 {
   "name": "graasp-service-exporter",
+  "jest": {
+    "collectCoverageFrom": [
+      "src/services/*.js",
+      "!src/services/utils.js",
+      "!src/services/sns.js",
+      "!src/services/cover.js"
+    ]
+  },
   "version": "0.2.0",
   "description": "Service to export PDF, PNG and EPUB versions of learning spaces on Graasp.",
   "main": "src/index.js",
@@ -12,8 +20,8 @@
   "license": "MIT",
   "private": true,
   "scripts": {
-    "build": "babel src -d dist && mkdir -p dist/tmp && mkdir -p dist/services/css && cpy 'src/services/css/styles.css' 'dist/services/css/' ",
-    "test": "echo \"warning: no tests specified\" && exit 0",
+    "build": "babel src -d dist --ignore **/*.test.js && mkdir -p dist/tmp && mkdir -p dist/services/css && cpy 'src/services/css/*.css' 'dist/services/css/' ",
+    "test": "mkdir -p src/tmp && jest src --coverage && rm -r src/tmp",
     "lint": "eslint .",
     "start": "yarn start:local",
     "start:debug": "SLS_DEBUG=* serverless offline start --stage local",
@@ -43,6 +51,7 @@
     "canvas": "2.4.1",
     "cheerio": "1.0.0-rc.3",
     "cpy-cli": "2.0.0",
+    "dateformat": "3.0.3",
     "epub-gen": "https://github.com/graasp/epub-gen",
     "html-entities": "1.2.1",
     "puppeteer": "1.13.0",

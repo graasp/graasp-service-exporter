@@ -13,6 +13,7 @@ jspm_packages
 
 # temporary directories
 /tmp/*
+/src/tmp
 !/tmp/README.md
 
 # misc

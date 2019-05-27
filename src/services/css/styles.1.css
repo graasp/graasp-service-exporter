@@ -2,14 +2,10 @@
   font-family: 'arial'; /*should use reader default settings*/
 }
 
-h1 {
-  /*text-transform:capitalize;*/
-}
-
 /*titles*/
 h1 {
-  color: white;
-  background: #5050d2;
+  color: #5050d2;
+  border-bottom: 2px solid #5050d2;
   padding: 5px 30px;
 }
 
@@ -18,12 +14,12 @@ body > div {
   padding: 10px 20px;
 }
 
-/* body > div:not(:last-child) {
-    
-    border-bottom:1px solid lightgrey;
-    display:block;
-    padding-bottom: 20px;
-} */
+/*content separator*/
+body > div:not(:last-child) {
+  border-bottom: 1px solid lightgrey;
+  display: block;
+  padding-bottom: 20px;
+}
 
 app-subpage-resource img {
   display: block;
@@ -37,10 +33,12 @@ app-subpage-resource img {
 }
 app-subpage-resource .description p {
   text-align: center;
+  color: #5050d2;
 }
 
 .resources .description {
   /*@TODO gap for image description */
+  color: #5050d2;
   margin: 5px;
   text-align: center;
 }
@@ -84,15 +82,4 @@ audio {
 /* override space content padding */
 ng-component app-subpage-content {
   padding: 30px 0;
-}
-
-/*general margins*/
-/* .export > section > .resources, .tools > section > .resources, .description  {
-    margin:0 30px;
-    display:block;
-} */
-
-/*@TODO separator*/
-/* app-subpage-content:not(.tools) > div:not(.description):not(:last-child) { */
-app-subpage-resource {
 }
