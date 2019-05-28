@@ -209,7 +209,6 @@ const screenshotElements = async (elements, page) => {
     await element.screenshot({
       path,
       // eslint-disable-next-line no-await-in-loop
-      clip: await element.boundingBox(),
     });
     paths.push(path);
   }
@@ -374,6 +373,24 @@ const replaceSrcWithSrcdocInIframe = async (elements, page, lang, baseUrl) => {
   await addSrcdocWithContentToIframes(elements, iframesSrcdoc, page);
 };
 
+const handleBackground = async (page, baseUrl) => {
+  let background = COVER_DEFAULT_PATH;
+  try {
+    await page.waitForSelector(HEADER, { timeout: ELEMENTS_TIMEOUT });
+    background = await page.$eval(HEADER, getBackground, baseUrl);
+    if (!(background instanceof String) && typeof background !== 'string') {
+      background = COVER_DEFAULT_PATH;
+    }
+  } catch (error) {
+    if (error instanceof puppeteerErrors.TimeoutError) {
+      Logger.debug('no background image found');
+    } else {
+      throw error;
+    }
+  }
+  return background;
+};
+
 const handleAudios = async (page, mode) => {
   Logger.debug(`handling audios`);
   let audioScreenshots = [];
@@ -442,9 +459,8 @@ const handleOfflineLabs = async (page, mode, lang, baseUrl) => {
     const offlineIframes = await page.$$(OFFLINE_READY_IFRAMES);
     switch (mode) {
       case MODE_INTERACTIVE:
-      // @TODO: handle phet lab
+      // @TODO: handle phet lab - interactive link does not work
       // height is adjusted in the export view
-      // break;
       // falls through
       case MODE_READONLY:
         // we need embed content in iframe srcdoc
@@ -585,7 +601,7 @@ const handleObjects = async (page, mode) => {
       // @TODO : handle unauthorized response
       // we need to adjust the height of gadget iframe
       // await adjustHeightForElements(objects, page);
-      // break;
+
       // falls through
       case MODE_READONLY:
       // falls through
@@ -665,13 +681,19 @@ const handleUnsupported = async (page, mode) => {
 
 const saveEpub = async (page, mode, lang, username) => {
   Logger.debug(`saving epub in ${mode} mode`);
+
   // get title
+  Logger.debug(`retrieve title`);
   let title = 'Untitled';
   try {
     await page.waitForSelector(SPACE_TITLE, { timeout: ELEMENTS_TIMEOUT });
     title = await page.$eval(SPACE_TITLE, el => el.innerHTML);
   } catch (titleErr) {
-    Logger.debug(titleErr);
+    if (titleErr instanceof puppeteerErrors.TimeoutError) {
+      Logger.debug('no title found');
+    } else {
+      throw titleErr;
+    }
   }
 
   // retrieve base url, and prepare it with necessary
@@ -682,26 +704,10 @@ const saveEpub = async (page, mode, lang, username) => {
   // get author
   Logger.debug(`retrieve author`);
   const author = 'Anonymous';
-  /*   try {
-    const authorSelector = 'meta[name=author]';
-    await page.waitForSelector(authorSelector, { timeout: 1000 });
-    author = await page.$eval(authorSelector, el => el.getAttribute('content'));
-  } catch (authorErr) {
-    console.error(authorErr);
-  }
-  */
-  // get background to use as cover
+
+  // get background
   Logger.debug(`retrieving background`);
-  let background = COVER_DEFAULT_PATH;
-  try {
-    await page.waitForSelector(HEADER, { timeout: ELEMENTS_TIMEOUT });
-    background = await page.$eval(HEADER, getBackground, baseUrl);
-    if (!(background instanceof String) && typeof background !== 'string') {
-      background = COVER_DEFAULT_PATH;
-    }
-  } catch (err) {
-    Logger.debug(err);
-  }
+  const background = await handleBackground(page, baseUrl);
 
   // epub-gen handle images by himself
   // screenshot replacements have to come after image src changes

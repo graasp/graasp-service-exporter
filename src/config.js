@@ -50,7 +50,7 @@ export const AUTH_TYPE_ANONYMOUS = 'local-contextual-anonymous';
 export const AUTH_TYPE_USERNAME = 'local-contextual-username';
 export const AUTH_TYPE_PASSWORD = 'local-contextual-username-password';
 export const TIMEOUT = 60000;
-export const ELEMENTS_TIMEOUT = 1500;
+export const ELEMENTS_TIMEOUT = 2000;
 
 export const DEFAULT_LANGUAGE = 'en';
 
