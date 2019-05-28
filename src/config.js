@@ -42,6 +42,7 @@ export {
 
 export const VIEWPORT_WIDTH = 1200;
 
+export const SCREENSHOT_FORMAT = 'png';
 export const SUPPORTED_FORMATS = ['pdf', 'png', 'epub'];
 export const PENDING_STATUS = 'pending';
 export const EXPORT_TOPIC = `export-${STAGE}`;

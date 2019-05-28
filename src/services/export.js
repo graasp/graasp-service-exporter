@@ -27,6 +27,7 @@ import {
   DEFAULT_LANGUAGE,
   CSS_STYLES_FILE,
   VIEWPORT_WIDTH,
+  SCREENSHOT_FORMAT,
 } from '../config';
 import Logger from '../utils/Logger';
 import getChrome from '../utils/getChrome';
@@ -80,8 +81,8 @@ const generateEpub = async ({
   author = 'Anonymous',
   username = 'Anonymous',
   chapters = [],
-  background,
-  screenshots,
+  background = COVER_DEFAULT_PATH,
+  screenshots = [],
 }) => {
   Logger.debug('generating epub');
   // main options
@@ -204,7 +205,7 @@ const screenshotElements = async (elements, page) => {
       await evalSetIdToElement(page, element, id);
     }
     // save screenshot with id as filename
-    const path = `${TMP_FOLDER}/${id}.png`;
+    const path = `${TMP_FOLDER}/${id}.${SCREENSHOT_FORMAT}`;
     // eslint-disable-next-line no-await-in-loop
     await element.screenshot({
       path,
@@ -315,7 +316,7 @@ const getDownloadUrl = async (content, lang) => {
 
   // look for the url corresponding with the language
   const elem = $(`${META_DOWNLOAD}[language=${lang}]`);
-  if (elem) {
+  if (elem.length) {
     url = elem.attr('value');
   }
   // fall back on the default language
@@ -630,7 +631,7 @@ const handleEmbedded = async (page, mode) => {
     const embeds = await page.$$(EMBEDDED_ELEMENTS);
     switch (mode) {
       case MODE_INTERACTIVE:
-        // we need to adjust the height of gadget iframe
+        // we need to adjust the height of embedded iframe
         await adjustHeightForElements(embeds, page);
         break;
       case MODE_READONLY:
@@ -734,6 +735,9 @@ const saveEpub = async (page, mode, lang, username) => {
   const embedScreenshots = await handleEmbedded(page, mode);
 
   // one file labs
+  // warning: handle offline labs after handling all iframes
+  // this function may transform iframe[srcdoc] into plain iframes
+  // which may be included in other selectors
   const offlineIframeScreenshots = await handleOfflineLabs(
     page,
     mode,
@@ -942,20 +946,6 @@ const scrape = async ({
       default:
     }
 
-    // dismiss cookie banner
-    /* const dismissCookiesMessageButton = 'a.cc-dismiss';
-      
-      // we do not want to error out just because of the cookie message
-      Logger.debug('dismissing cookie banner');
-      try {
-        await page.waitForSelector(dismissCookiesMessageButton, {
-          timeout: 1000,
-        });
-        await page.click(dismissCookiesMessageButton);
-      } catch (err) {
-        Logger.info('cookie message present', err);
-      } */
-
     // wait three more seconds just in case, mainly to wait for iframes to load
     await page.waitFor(3000);
 
@@ -1065,13 +1055,18 @@ export {
   upload,
   isReady,
   adjustHeightForElements,
+  getDownloadUrl,
   handleApps,
   handleAudios,
+  handleBackground,
   handleEmbedded,
   handleGadgets,
   handleLabs,
   handleObjects,
+  handleOfflineLabs,
+  handleUnsupported,
   handleVideos,
   makeElementLinkAbsolute,
   retrieveBaseUrl,
+  generateEpub,
 };

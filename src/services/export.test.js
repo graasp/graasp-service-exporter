@@ -1,24 +1,40 @@
 import Puppeteer from 'puppeteer';
+import fs from 'fs';
+import glob from 'glob';
+import path from 'path';
 import { evalMakeElementLinkAbsolute } from './utils';
 import {
   GRAASP_HOST,
   MODE_INTERACTIVE,
   MODE_READONLY,
   MODE_STATIC,
+  DEFAULT_LANGUAGE,
+  TMP_FOLDER,
+  SCREENSHOT_FORMAT,
 } from '../config';
 import {
   retrieveBaseUrl,
+  getDownloadUrl,
   handleApps,
   handleAudios,
+  handleEmbedded,
   handleGadgets,
   handleLabs,
+  handleObjects,
+  handleOfflineLabs,
+  handleUnsupported,
   handleVideos,
+  generateEpub,
 } from './export';
 import {
   APP_ELEMENTS,
   AUDIOS,
+  EMBEDDED_ELEMENTS,
   GADGETS,
   LAB_ELEMENTS,
+  OBJECT_ELEMENTS,
+  OFFLINE_READY_IFRAMES,
+  UNSUPPORTED_ELEMENTS,
   VIDEOS,
 } from './selectors';
 
@@ -43,18 +59,28 @@ const initBrowser = async () => {
 const initPuppeteer = async () => {
   await initBrowser();
   page = await browser.newPage();
-  await page.goto(`file://${__dirname}/export.test.html`);
+  await page.goto(`file://${__dirname}/export.test.html`, {
+    waitUntil: 'domcontentloaded',
+    timeout: 0,
+  });
 };
 
 const initPuppeteerWithMode = async () => {
   await initBrowser();
   pageStatic = await browser.newPage();
-  await pageStatic.goto(`file://${__dirname}/export_static.test.html`);
+  await pageStatic.goto(`file://${__dirname}/export_static.test.html`, {
+    waitUntil: 'domcontentloaded',
+    timeout: 0,
+  });
   pageReadOnly = await browser.newPage();
-  await pageReadOnly.goto(`file://${__dirname}/export_readonly.test.html`);
+  await pageReadOnly.goto(`file://${__dirname}/export_readonly.test.html`, {
+    waitUntil: 'domcontentloaded',
+    timeout: 0,
+  });
   pageInteractive = await browser.newPage();
   await pageInteractive.goto(
-    `file://${__dirname}/export_interactive.test.html`
+    `file://${__dirname}/export_interactive.test.html`,
+    { waitUntil: 'domcontentloaded', timeout: 0 }
   );
 };
 
@@ -62,10 +88,65 @@ const closePuppeteer = async () => {
   await browser.close();
 };
 
+const removeAllImages = async () => {
+  const directory = TMP_FOLDER;
+  fs.readdir(directory, (err, files) => {
+    if (err) throw err;
+
+    files.forEach(file => {
+      fs.unlink(path.join(directory, file), error => {
+        if (error) throw error;
+      });
+    });
+  });
+};
+
 const getSrcValue = async element => {
   const value = await page.evaluate(el => el.getAttribute('src'), element);
   return value;
 };
+
+const existFile = format => {
+  glob(`${TMP_FOLDER}/*.${format}`, {}, (err, files) => {
+    expect(files).toBeTruthy();
+  });
+};
+
+describe('handleApps', () => {
+  beforeAll(async () => {
+    await initPuppeteerWithMode();
+  });
+
+  afterAll(async () => {
+    await closePuppeteer();
+  });
+
+  afterEach(async () => {
+    removeAllImages();
+  });
+
+  it('interactive: apps remain', async () => {
+    await handleApps(pageInteractive, MODE_INTERACTIVE);
+    await pageInteractive.waitFor(timeout);
+    expect(
+      pageInteractive.waitForSelector(APP_ELEMENTS)
+    ).resolves.not.toThrow();
+  });
+
+  it('read-only: apps become screenshots', async () => {
+    await handleApps(pageReadOnly, MODE_READONLY);
+    await pageReadOnly.waitFor(timeout);
+    expect(pageReadOnly.waitForSelector(APP_ELEMENTS)).rejects.toThrow();
+    existFile(SCREENSHOT_FORMAT);
+  });
+
+  it('static: apps become screenshots', async () => {
+    await handleApps(pageStatic, MODE_STATIC);
+    await pageStatic.waitFor(timeout);
+    expect(pageStatic.waitForSelector(APP_ELEMENTS)).rejects.toThrow();
+    existFile(SCREENSHOT_FORMAT);
+  });
+});
 
 describe('handleAudios', () => {
   beforeAll(async () => {
@@ -86,12 +167,14 @@ describe('handleAudios', () => {
     await handleAudios(pageReadOnly, MODE_READONLY);
     await pageReadOnly.waitFor(timeout);
     expect(pageReadOnly.waitForXPath(AUDIOS)).rejects.toThrow();
+    existFile(SCREENSHOT_FORMAT);
   });
 
   it('static: audios become screenshots', async () => {
     await handleAudios(pageStatic, MODE_STATIC);
     await pageStatic.waitFor(timeout);
     expect(pageStatic.waitForXPath(AUDIOS)).rejects.toThrow();
+    existFile(SCREENSHOT_FORMAT);
   });
 });
 
@@ -114,12 +197,46 @@ describe('handleVideos', () => {
     await handleVideos(pageReadOnly, MODE_READONLY);
     await pageReadOnly.waitFor(timeout);
     expect(pageReadOnly.waitForSelector(VIDEOS)).rejects.toThrow();
+    existFile(SCREENSHOT_FORMAT);
   });
 
   it('static: videos become screenshots', async () => {
     await handleVideos(pageStatic, MODE_STATIC);
     await pageStatic.waitFor(timeout);
     expect(pageStatic.waitForSelector(VIDEOS)).rejects.toThrow();
+    existFile(SCREENSHOT_FORMAT);
+  });
+});
+
+describe('handleEmbedded', () => {
+  beforeAll(async () => {
+    await initPuppeteerWithMode();
+  });
+
+  afterAll(async () => {
+    await closePuppeteer();
+  });
+
+  it('interactive: embedded elements remain', async () => {
+    await handleEmbedded(pageInteractive, MODE_INTERACTIVE);
+    await pageInteractive.waitFor(timeout);
+    expect(
+      pageInteractive.waitForSelector(EMBEDDED_ELEMENTS)
+    ).resolves.not.toThrow();
+  });
+
+  it('read-only: embedded elements become screenshots', async () => {
+    await handleEmbedded(pageReadOnly, MODE_READONLY);
+    await pageReadOnly.waitFor(timeout);
+    expect(pageReadOnly.waitForSelector(EMBEDDED_ELEMENTS)).rejects.toThrow();
+    existFile(SCREENSHOT_FORMAT);
+  });
+
+  it('static: embedded elements become screenshots', async () => {
+    await handleEmbedded(pageStatic, MODE_STATIC);
+    await pageStatic.waitFor(timeout);
+    expect(pageStatic.waitForSelector(EMBEDDED_ELEMENTS)).rejects.toThrow();
+    existFile(SCREENSHOT_FORMAT);
   });
 });
 
@@ -144,12 +261,115 @@ describe('handleLabs', () => {
     await handleLabs(pageReadOnly, MODE_READONLY);
     await pageReadOnly.waitFor(timeout);
     expect(pageReadOnly.waitForSelector(LAB_ELEMENTS)).rejects.toThrow();
+    existFile(SCREENSHOT_FORMAT);
   });
 
   it('static: labs become screenshots', async () => {
     await handleLabs(pageStatic, MODE_STATIC);
     await pageStatic.waitFor(timeout);
     expect(pageStatic.waitForSelector(LAB_ELEMENTS)).rejects.toThrow();
+    existFile(SCREENSHOT_FORMAT);
+  });
+});
+
+describe('handleObjects', () => {
+  beforeAll(async () => {
+    await initPuppeteerWithMode();
+  });
+
+  afterAll(async () => {
+    await closePuppeteer();
+  });
+
+  it('interactive: object elements become screenshots', async () => {
+    await handleObjects(pageInteractive, MODE_INTERACTIVE);
+    await pageInteractive.waitFor(timeout);
+    expect(pageReadOnly.waitForSelector(OBJECT_ELEMENTS)).rejects.toThrow();
+    existFile(SCREENSHOT_FORMAT);
+  });
+
+  it('read-only: object elements become screenshots', async () => {
+    await handleObjects(pageReadOnly, MODE_READONLY);
+    await pageReadOnly.waitFor(timeout);
+    expect(pageReadOnly.waitForSelector(OBJECT_ELEMENTS)).rejects.toThrow();
+    existFile(SCREENSHOT_FORMAT);
+  });
+
+  it('static: object elements become screenshots', async () => {
+    await handleObjects(pageStatic, MODE_STATIC);
+    await pageStatic.waitFor(timeout);
+    expect(pageStatic.waitForSelector(OBJECT_ELEMENTS)).rejects.toThrow();
+    existFile(SCREENSHOT_FORMAT);
+  });
+});
+
+describe('handleOfflineLabs', () => {
+  beforeAll(async () => {
+    await initPuppeteerWithMode();
+  });
+
+  afterAll(async () => {
+    await closePuppeteer();
+  });
+
+  it('interactive: offline labs become iframe with srcdoc set', async () => {
+    await handleOfflineLabs(pageInteractive, MODE_INTERACTIVE);
+    await pageInteractive.waitFor(timeout);
+    expect(
+      pageInteractive.waitForSelector(OFFLINE_READY_IFRAMES)
+    ).rejects.toThrow();
+    existFile(SCREENSHOT_FORMAT);
+  });
+
+  it('read-only: offline labs become iframe with srcdoc set', async () => {
+    await handleOfflineLabs(pageReadOnly, MODE_READONLY);
+    await pageReadOnly.waitFor(timeout);
+    expect(
+      pageReadOnly.waitForSelector(OFFLINE_READY_IFRAMES)
+    ).rejects.toThrow();
+    existFile(SCREENSHOT_FORMAT);
+  });
+
+  it('static: offline labs become screenshots', async () => {
+    await handleOfflineLabs(pageStatic, MODE_STATIC);
+    await pageStatic.waitFor(timeout);
+    expect(pageStatic.waitForSelector(OFFLINE_READY_IFRAMES)).rejects.toThrow();
+    existFile(SCREENSHOT_FORMAT);
+  });
+});
+
+describe('handleUnsupported', () => {
+  beforeAll(async () => {
+    await initPuppeteerWithMode();
+  });
+
+  afterAll(async () => {
+    await closePuppeteer();
+  });
+
+  it('interactive: unsupported elements become screenshots', async () => {
+    await handleUnsupported(pageInteractive, MODE_INTERACTIVE);
+    await pageInteractive.waitFor(timeout);
+    expect(
+      pageInteractive.waitForSelector(UNSUPPORTED_ELEMENTS)
+    ).rejects.toThrow();
+    existFile(SCREENSHOT_FORMAT);
+  });
+
+  it('read-only: unsupported elements become screenshots', async () => {
+    await handleUnsupported(pageReadOnly, MODE_READONLY);
+    await pageReadOnly.waitFor(timeout);
+    expect(
+      pageReadOnly.waitForSelector(UNSUPPORTED_ELEMENTS)
+    ).rejects.toThrow();
+    existFile(SCREENSHOT_FORMAT);
+  });
+
+  it('static: unsupported elements become screenshots', async () => {
+    await handleUnsupported(pageStatic, MODE_STATIC);
+    await pageStatic.waitFor(timeout);
+    expect(pageStatic.waitForSelector(UNSUPPORTED_ELEMENTS)).rejects.toThrow();
+    existFile(SCREENSHOT_FORMAT);
   });
 });
 
@@ -162,52 +382,24 @@ describe('handleGadgets', () => {
     await closePuppeteer();
   });
 
-  it('interactive: labs remain', async () => {
+  it('interactive: gadgets remain', async () => {
     await handleGadgets(pageInteractive, MODE_INTERACTIVE);
     await pageInteractive.waitFor(timeout);
     expect(pageInteractive.waitForSelector(GADGETS)).resolves.not.toThrow();
   });
 
-  it('read-only: labs become screenshots', async () => {
+  it('read-only: gadgets become screenshots', async () => {
     await handleGadgets(pageReadOnly, MODE_READONLY);
     await pageReadOnly.waitFor(timeout);
     expect(pageReadOnly.waitForSelector(GADGETS)).rejects.toThrow();
+    existFile(SCREENSHOT_FORMAT);
   });
 
-  it('static: labs become screenshots', async () => {
+  it('static: gadgets become screenshots', async () => {
     await handleGadgets(pageStatic, MODE_STATIC);
     await pageStatic.waitFor(timeout);
     expect(pageStatic.waitForSelector(GADGETS)).rejects.toThrow();
-  });
-});
-
-describe('handleApps', () => {
-  beforeAll(async () => {
-    await initPuppeteerWithMode();
-  });
-
-  afterAll(async () => {
-    await closePuppeteer();
-  });
-
-  it('interactive: apps remain', async () => {
-    await handleApps(pageInteractive, MODE_INTERACTIVE);
-    await pageInteractive.waitFor(timeout);
-    expect(
-      pageInteractive.waitForSelector(APP_ELEMENTS)
-    ).resolves.not.toThrow();
-  });
-
-  it('read-only: apps become screenshots', async () => {
-    await handleApps(pageReadOnly, MODE_READONLY);
-    await pageReadOnly.waitFor(timeout);
-    expect(pageReadOnly.waitForSelector(APP_ELEMENTS)).rejects.toThrow();
-  });
-
-  it('static: apps become screenshots', async () => {
-    await handleApps(pageStatic, MODE_STATIC);
-    await pageStatic.waitFor(timeout);
-    expect(pageStatic.waitForSelector(APP_ELEMENTS)).rejects.toThrow();
+    existFile(SCREENSHOT_FORMAT);
   });
 });
 
@@ -362,5 +554,50 @@ describe('retrieveBaseUrl', () => {
       '#base-doubleslash-noslash',
       'https://example.com/'
     );
+  });
+});
+
+describe('getDownloadUrl', () => {
+  const metaTags = `<meta name="download" value="https://example.com/"></meta>
+  <meta name="download" language="fr" value="https://example.com/fr"></meta>`;
+
+  const metaTagsWithEn = `${metaTags}<meta name="download" language="${DEFAULT_LANGUAGE}" 
+  value="https://example.com/${DEFAULT_LANGUAGE}"></meta>`;
+
+  it('content="" returns null', async () => {
+    const url = await getDownloadUrl('', DEFAULT_LANGUAGE);
+    expect(url).toBeFalsy();
+  });
+
+  it('language="" returns default language content if exist', async () => {
+    const url = await getDownloadUrl(metaTagsWithEn, '');
+    expect(url).toMatch(`https://example.com/${DEFAULT_LANGUAGE}`);
+  });
+
+  it('language="" returns null if en doesnt exist', async () => {
+    const url = await getDownloadUrl(metaTags, '');
+    expect(url).toBeFalsy();
+  });
+
+  it('default language returns corresponding url if exists', async () => {
+    const url = await getDownloadUrl(metaTagsWithEn, DEFAULT_LANGUAGE);
+    expect(url).toMatch('https://example.com/en');
+  });
+
+  it('default language returns null if doesnt exists', async () => {
+    const url = await getDownloadUrl(metaTags, DEFAULT_LANGUAGE);
+    expect(url).toBeFalsy();
+  });
+
+  it('lang=es returns default language url', async () => {
+    const url = await getDownloadUrl(metaTagsWithEn, 'es');
+    expect(url).toMatch(`https://example.com/${DEFAULT_LANGUAGE}`);
+  });
+});
+
+describe('generateEpub', () => {
+  it('generate epub with default parameters', async () => {
+    await generateEpub({});
+    existFile('epub');
   });
 });
