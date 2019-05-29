@@ -311,22 +311,25 @@ const retrieveUrls = async (iframes, page) => {
 };
 
 const getDownloadUrl = async (content, lang) => {
-  const $ = cheerio.load(content);
   let url = null;
+  if (content) {
+    const $ = cheerio.load(content);
 
-  // look for the url corresponding with the language
-  const elem = $(`${META_DOWNLOAD}[language=${lang}]`);
-  if (elem.length) {
-    url = elem.attr('value');
-  }
-  // fall back on the default language
-  else if (lang !== DEFAULT_LANGUAGE) {
-    const elemDefaultLang = $(`${META_DOWNLOAD}[language=${DEFAULT_LANGUAGE}]`);
-    if (elemDefaultLang) {
-      url = elemDefaultLang.attr('value');
+    // look for the url corresponding with the language
+    const elem = $(`${META_DOWNLOAD}[language=${lang}]`);
+    if (elem.length) {
+      url = elem.attr('value');
+    }
+    // fall back on the default language
+    else if (lang !== DEFAULT_LANGUAGE) {
+      const elemDefaultLang = $(
+        `${META_DOWNLOAD}[language=${DEFAULT_LANGUAGE}]`
+      );
+      if (elemDefaultLang) {
+        url = elemDefaultLang.attr('value');
+      }
     }
   }
-
   return url;
 };
 

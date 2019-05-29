@@ -21,7 +21,7 @@
   "private": true,
   "scripts": {
     "build": "babel src -d dist --ignore **/*.test.js && mkdir -p dist/tmp && mkdir -p dist/services/css && cpy 'src/services/css/*.css' 'dist/services/css/' ",
-    "test": "echo \"Error: no test specified\" && exit 0",
+    "test": "mkdir -p src/tmp && jest src && rm -r src/tmp",
     "test:coverage": "mkdir -p src/tmp && jest src --coverage && rm -r src/tmp",
     "lint": "eslint .",
     "start": "yarn start:local",
