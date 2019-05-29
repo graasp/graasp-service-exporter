@@ -1,6 +1,6 @@
 import Puppeteer from 'puppeteer';
 import glob from 'glob';
-import { evalMakeElementLinkAbsolute } from './utils';
+import { makeElementsLinkAbsolute } from './utils';
 import {
   GRAASP_HOST,
   DEFAULT_LANGUAGE,
@@ -36,7 +36,7 @@ const closePuppeteer = async () => {
   await browser.close();
 };
 
-const containsImgPaths = async paths => {
+const containsImgPaths = paths => {
   glob(`${TMP_FOLDER}/*.${SCREENSHOT_FORMAT}`, {}, (err, files) => {
     if (err) {
       throw err;
@@ -50,7 +50,7 @@ const getSrcValue = async element => {
   return value;
 };
 
-describe('makeElementLinkAbsolute', () => {
+describe('makeElementsLinkAbsolute', () => {
   beforeAll(async () => {
     await initPuppeteer();
   });
@@ -65,8 +65,7 @@ describe('makeElementLinkAbsolute', () => {
     resultUrl
   ) => {
     const iframe = await page.$(selector);
-
-    await evalMakeElementLinkAbsolute(page, iframe, 'src', baseUrl);
+    await makeElementsLinkAbsolute([iframe], 'src', baseUrl, page);
     const url = await getSrcValue(iframe);
 
     expect(url).toMatch(resultUrl);
@@ -75,7 +74,7 @@ describe('makeElementLinkAbsolute', () => {
   it('if attrName is empty, src url stays unchanged', async () => {
     const iframe = await page.$('#iframe-https');
 
-    await evalMakeElementLinkAbsolute(page, iframe, '', 'https://example.com/');
+    await makeElementsLinkAbsolute([iframe], '', 'https://example.com/', page);
     const url = await getSrcValue(iframe);
 
     expect(url).toMatch('https://example.com/');
@@ -85,7 +84,7 @@ describe('makeElementLinkAbsolute', () => {
     const el = await page.$('no-selector');
 
     expect(
-      evalMakeElementLinkAbsolute(page, el, 'src', 'https://example.com/')
+      makeElementsLinkAbsolute([el], 'src', 'https://example.com/', page)
     ).resolves.not.toThrow();
   });
 
@@ -109,7 +108,7 @@ describe('makeElementLinkAbsolute', () => {
     const iframe = await page.$('#iframe-https');
 
     expect(
-      evalMakeElementLinkAbsolute(page, iframe, 'src', 'https:/example.com')
+      makeElementsLinkAbsolute([iframe], 'src', 'https:/example.com', page)
     ).rejects.toThrow();
   });
 
@@ -117,7 +116,7 @@ describe('makeElementLinkAbsolute', () => {
     const iframe = await page.$('#iframe-https');
 
     expect(
-      evalMakeElementLinkAbsolute(page, iframe, 'src', 'example.com/')
+      makeElementsLinkAbsolute([iframe], 'src', 'example.com/', page)
     ).rejects.toThrow();
   });
 

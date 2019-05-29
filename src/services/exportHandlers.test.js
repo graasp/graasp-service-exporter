@@ -31,6 +31,7 @@ import {
   GADGETS,
   LAB_ELEMENTS,
   VIDEOS,
+  OBJECT_ELEMENTS,
 } from './selectors';
 
 let browser;
@@ -302,8 +303,11 @@ describe('handleObjects', () => {
 
   it('interactive: object elements become screenshots', async () => {
     const screenshots = await handleObjects(pageInteractive, MODE_INTERACTIVE);
-    fileExists(SCREENSHOT_FORMAT);
-    expect(screenshots.length).toBe(2);
+    await pageInteractive.waitFor(timeout);
+    expect(
+      pageInteractive.waitForSelector(OBJECT_ELEMENTS)
+    ).resolves.not.toThrow();
+    expect(screenshots.length).toBe(0);
   });
 
   it('read-only: object elements become screenshots', async () => {

@@ -58,13 +58,13 @@ import {
   VIDEOS,
 } from './selectors';
 import {
-  evalAddSrcdocWithContentToIframe,
-  evalAdjustElementHeight,
-  evalReplaceElementWithScreenshot,
+  addSrcdocWithContentToIframes,
+  adjustHeightForElements,
+  replaceElementsWithScreenshots,
   evalGetSrcFromElement,
   evalSetIdToElement,
   getSubpagesContent,
-  evalMakeElementLinkAbsolute,
+  makeElementsLinkAbsolute,
   evalBackground,
 } from './utils';
 
@@ -216,54 +216,6 @@ const screenshotElements = async (elements, page) => {
     paths.push(path);
   }
   return paths;
-};
-
-const replaceElementsWithScreenshots = async (elements, page) => {
-  Logger.debug('replacing elements with screenshots');
-
-  // using for-of-loop for readability when using await inside a loop
-  // where await is needed due to requirement of sequential steps
-  // check for discussion: http://bit.ly/2JcMMLk
-  // eslint-disable-next-line no-restricted-syntax
-  for (const element of elements) {
-    // eslint-disable-next-line no-await-in-loop
-    await evalReplaceElementWithScreenshot(page, element, TMP_FOLDER);
-  }
-};
-
-const adjustHeightForElements = async (elements, page) => {
-  Logger.debug('replacing elements height');
-  // using for-of-loop for readability when using await inside a loop
-  // where await is needed due to requirement of sequential steps
-  // check for discussion: http://bit.ly/2JcMMLk
-  // eslint-disable-next-line no-restricted-syntax
-  for (const element of elements) {
-    // eslint-disable-next-line no-await-in-loop
-    await evalAdjustElementHeight(page, element);
-  }
-};
-
-const makeElementsLinkAbsolute = async (elements, attrName, baseUrl, page) => {
-  // using for-of-loop for readability when using await inside a loop
-  // where await is needed due to requirement of sequential steps
-  // check for discussion: http://bit.ly/2JcMMLk
-  // eslint-disable-next-line no-restricted-syntax
-  for (const element of elements) {
-    // make absolute iframe url
-    // eslint-disable-next-line no-await-in-loop
-    await evalMakeElementLinkAbsolute(page, element, attrName, baseUrl);
-  }
-};
-
-const addSrcdocWithContentToIframes = async (iframes, contents, page) => {
-  // using for-of-loop for readability when using await inside a loop
-  // where await is needed due to requirement of sequential steps
-  // check for discussion: http://bit.ly/2JcMMLk
-  // eslint-disable-next-line no-restricted-syntax
-  for (const iframe of iframes) {
-    // eslint-disable-next-line no-await-in-loop
-    await evalAddSrcdocWithContentToIframe(page, iframe, contents);
-  }
 };
 
 const retrieveUrls = async (iframes, page) => {
@@ -573,11 +525,10 @@ const handleObjects = async (page, mode) => {
     const objects = await page.$$(OBJECT_ELEMENTS);
     switch (mode) {
       case MODE_INTERACTIVE:
-      // @TODO : handle unauthorized response
-      // we need to adjust the height of gadget iframe
-      // await adjustHeightForElements(objects, page);
-
-      // falls through
+        // @TODO : handle unauthorized response
+        // we need to adjust the height of gadget iframe
+        // await adjustHeightForElements(objects, page);
+        break;
       case MODE_READONLY:
       // falls through
       case MODE_STATIC:
@@ -652,6 +603,37 @@ const handleUnsupported = async (page, mode) => {
     }
   }
   return unsupportedScreenshots;
+};
+
+const retrievePhasesContent = async (page, mode) => {
+  let body = [];
+  try {
+    await page.waitForSelector(SUBPAGES, {
+      timeout: ELEMENTS_TIMEOUT,
+    });
+    body = await page.$$eval(
+      SUBPAGES,
+      getSubpagesContent,
+      PHASE_TITLES,
+      RESOURCES,
+      PHASE_DESCRIPTIONS
+    );
+
+    if (mode === MODE_READONLY || mode === MODE_INTERACTIVE) {
+      // decode & character because it was previously encoded when set to srcdoc attribute
+      body = body.map(phase => ({
+        title: phase.title,
+        data: phase.data.replace(/&amp;(?=([1-9]|[a-zA-Z]){1,6};)/g, '&'),
+      }));
+    }
+  } catch (error) {
+    if (error instanceof puppeteerErrors.TimeoutError) {
+      Logger.debug('no phase found');
+    } else {
+      throw error;
+    }
+  }
+  return body;
 };
 
 const saveEpub = async (page, mode, lang, username) => {
@@ -742,33 +724,7 @@ const saveEpub = async (page, mode, lang, username) => {
   // get body for epub
   // use the export class to differentiate from tools content
   Logger.debug(`retrieving phase content`);
-  let body = [];
-  try {
-    await page.waitForSelector(SUBPAGES, {
-      timeout: ELEMENTS_TIMEOUT,
-    });
-    body = await page.$$eval(
-      SUBPAGES,
-      getSubpagesContent,
-      PHASE_TITLES,
-      RESOURCES,
-      PHASE_DESCRIPTIONS
-    );
-
-    if (mode === MODE_READONLY || mode === MODE_INTERACTIVE) {
-      // decode & character because it was previously encoded when set to srcdoc attribute
-      body = body.map(phase => ({
-        title: phase.title,
-        data: phase.data.replace(/&amp;(?=([1-9]|[a-zA-Z]){1,6};)/g, '&'),
-      }));
-    }
-  } catch (error) {
-    if (error instanceof puppeteerErrors.TimeoutError) {
-      Logger.debug('no phase found');
-    } else {
-      throw error;
-    }
-  }
+  const body = await retrievePhasesContent(page, mode);
 
   // get tools for epub
   Logger.debug(`retrieving tools section`);
