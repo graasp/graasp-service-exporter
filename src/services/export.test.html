@@ -1,24 +1,46 @@
-<base id="base-empty" href="" />
-<base id="base-https-slash" href="https://example.com/" />
-<base id="base-https-noslash" href="https://example.com" />
-<base id="base-http-slash" href="http://example.com/" />
-<base id="base-http-noslash" href="http://example.com" />
-<base id="base-doubleslash-noslash" href="//example.com" />
-<base id="base-doubleslash-slash" href="//example.com/" />
+<html>
+  <head>
+    <style>
+      * {
+        display: block;
+        height: 200px;
+        width: 200px;
+      }
+    </style>
+  </head>
 
-<iframe id="iframe-https" src="https://example.com/" frameborder="0"></iframe>
-<iframe id="iframe-http" src="http://example.com/" frameborder="0"></iframe>
-<iframe id="iframe-point" src="./example.com/" frameborder="0"></iframe>
-<iframe id="iframe-doubleslash" src="//example.com" frameborder="0"></iframe>
-<iframe id="iframe-plain" src="example.com" frameborder="0"></iframe>
-<iframe id="iframe-empty" src="" frameborder="0"></iframe>
+  <body>
+    <base id="base-empty" href="" />
+    <base id="base-https-slash" href="https://example.com/" />
+    <base id="base-https-noslash" href="https://example.com" />
+    <base id="base-http-slash" href="http://example.com/" />
+    <base id="base-http-noslash" href="http://example.com" />
+    <base id="base-doubleslash-noslash" href="//example.com" />
+    <base id="base-doubleslash-slash" href="//example.com/" />
 
-<div></div>
-<div></div>
-<div></div>
+    <iframe
+      id="iframe-https"
+      src="https://example.com/"
+      frameborder="0"
+    ></iframe>
+    <iframe id="iframe-http" src="http://example.com/" frameborder="0"></iframe>
+    <iframe id="iframe-point" src="./example.com/" frameborder="0"></iframe>
+    <iframe
+      id="iframe-doubleslash"
+      src="//example.com"
+      frameborder="0"
+    ></iframe>
+    <iframe id="iframe-plain" src="example.com" frameborder="0"></iframe>
+    <iframe id="iframe-empty" src="" frameborder="0"></iframe>
 
-<style>
-  element {
-    height: 300px;
-  }
-</style>
+    <div></div>
+    <div></div>
+    <div></div>
+
+    <div class="header" data-backgroundImage=""></div>
+
+    <div class="toScreenshot" id="anId"></div>
+    <div class="toScreenshot"></div>
+    <div class="toScreenshot"></div>
+  </body>
+</html>

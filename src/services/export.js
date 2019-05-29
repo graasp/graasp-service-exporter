@@ -58,12 +58,14 @@ import {
   VIDEOS,
 } from './selectors';
 import {
+  evalAddSrcdocWithContentToIframe,
   evalAdjustElementHeight,
   evalReplaceElementWithScreenshot,
   evalGetSrcFromElement,
   evalSetIdToElement,
   getSubpagesContent,
-  makeElementLinkAbsolute,
+  evalMakeElementLinkAbsolute,
+  evalBackground,
 } from './utils';
 
 const s3 = new S3({
@@ -241,25 +243,6 @@ const adjustHeightForElements = async (elements, page) => {
   }
 };
 
-// note: cannot use async/await syntax in this
-// function until the following issue is solved
-// http://bit.ly/2HIyUZQ
-const getBackground = (el, host) => {
-  let backgroundUrl = el.dataset.backgroundImage;
-  if (backgroundUrl) {
-    if (backgroundUrl.startsWith('./')) {
-      backgroundUrl = host + backgroundUrl.substring(2);
-    } else if (backgroundUrl.startsWith('//')) {
-      backgroundUrl = `https:${backgroundUrl}`;
-    } else if (!backgroundUrl.startsWith('http')) {
-      backgroundUrl = host + backgroundUrl;
-    }
-
-    return backgroundUrl;
-  }
-  return null;
-};
-
 const makeElementsLinkAbsolute = async (elements, attrName, baseUrl, page) => {
   // using for-of-loop for readability when using await inside a loop
   // where await is needed due to requirement of sequential steps
@@ -268,20 +251,8 @@ const makeElementsLinkAbsolute = async (elements, attrName, baseUrl, page) => {
   for (const element of elements) {
     // make absolute iframe url
     // eslint-disable-next-line no-await-in-loop
-    await page.evaluate(makeElementLinkAbsolute, element, attrName, baseUrl);
+    await evalMakeElementLinkAbsolute(page, element, attrName, baseUrl);
   }
-};
-
-// creating a new element does not throw an error (setAttribute do)
-const addSrcdocWithContentToIframe = (iframe, contents) => {
-  // this function runs inside the dom so document will be defined
-  // eslint-disable-next-line no-undef
-  const newIframe = document.createElement('iframe');
-  const src = iframe.getAttribute('src');
-  newIframe.srcdoc = contents[src];
-  newIframe.style.height = iframe.style.height;
-  iframe.after(newIframe);
-  iframe.remove();
 };
 
 const addSrcdocWithContentToIframes = async (iframes, contents, page) => {
@@ -291,7 +262,7 @@ const addSrcdocWithContentToIframes = async (iframes, contents, page) => {
   // eslint-disable-next-line no-restricted-syntax
   for (const iframe of iframes) {
     // eslint-disable-next-line no-await-in-loop
-    await page.evaluate(addSrcdocWithContentToIframe, iframe, contents);
+    await evalAddSrcdocWithContentToIframe(page, iframe, contents);
   }
 };
 
@@ -381,7 +352,7 @@ const handleBackground = async (page, baseUrl) => {
   let background = COVER_DEFAULT_PATH;
   try {
     await page.waitForSelector(HEADER, { timeout: ELEMENTS_TIMEOUT });
-    background = await page.$eval(HEADER, getBackground, baseUrl);
+    background = await evalBackground(page, baseUrl);
     if (!(background instanceof String) && typeof background !== 'string') {
       background = COVER_DEFAULT_PATH;
     }
@@ -1069,7 +1040,7 @@ export {
   handleOfflineLabs,
   handleUnsupported,
   handleVideos,
-  makeElementLinkAbsolute,
   retrieveBaseUrl,
   generateEpub,
+  screenshotElements,
 };
