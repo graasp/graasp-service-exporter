@@ -47,6 +47,9 @@ export const SUPPORTED_FORMATS = ['pdf', 'png', 'epub'];
 export const PENDING_STATUS = 'pending';
 export const EXPORT_TOPIC = `export-${STAGE}`;
 
+export const GRAASP_VIEWER = /https?:\/\/viewer\.(dev\.)?graasp\.eu/g;
+export const GRAASP_CLOUD = /https?:\/\/cloud\.(dev\.)?graasp\.eu/g;
+
 export const AUTH_TYPE_ANONYMOUS = 'local-contextual-anonymous';
 export const AUTH_TYPE_USERNAME = 'local-contextual-username';
 export const AUTH_TYPE_PASSWORD = 'local-contextual-username-password';

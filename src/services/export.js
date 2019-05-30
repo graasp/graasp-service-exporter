@@ -10,6 +10,8 @@ import cheerio from 'cheerio';
 import { XmlEntities } from 'html-entities';
 import {
   GRAASP_HOST,
+  GRAASP_VIEWER,
+  GRAASP_CLOUD,
   S3_BUCKET,
   S3_PORT,
   TMP_FOLDER,
@@ -45,7 +47,6 @@ import {
   META_DOWNLOAD,
   OBJECT_ELEMENTS,
   OFFLINE_READY_IFRAMES,
-  PASSWORD,
   PHASE_DESCRIPTIONS,
   PHASE_TITLES,
   RESOURCES,
@@ -54,7 +55,12 @@ import {
   SUBPAGES,
   TOOLS,
   UNSUPPORTED_ELEMENTS,
-  USERNAME,
+  CLOUD_LOGIN,
+  CLOUD_PASSWORD,
+  CLOUD_USERNAME,
+  VIEWER_LOGIN,
+  VIEWER_USERNAME,
+  VIEWER_PASSWORD,
   VIDEOS,
 } from './selectors';
 import {
@@ -800,7 +806,17 @@ const signIn = async page => {
       timeout: TIMEOUT,
       waitUntil: 'networkidle0',
     }),
-    page.click('.submit'),
+    page.click(CLOUD_LOGIN),
+  ]);
+};
+
+const signInViewer = async page => {
+  return Promise.all([
+    page.waitForNavigation({
+      timeout: TIMEOUT,
+      waitUntil: 'networkidle0',
+    }),
+    page.click(VIEWER_LOGIN),
   ]);
 };
 
@@ -831,49 +847,64 @@ const scrape = async ({
 
     Logger.debug('visiting page');
 
-    let auth = AUTH_TYPE_ANONYMOUS;
-    // this endpoint will return a 401 so we catch to find the auth type
-    try {
-      const loginTypeResponse = await request({
-        uri: loginTypeUrl,
-        json: true,
-      });
-      ({ body: { auth } = {} } = loginTypeResponse);
-    } catch (err) {
-      ({ error: { auth } = {} } = err);
-    }
-
     await page.goto(url, {
       waitUntil: 'networkidle0',
       // one minute timeout
       timeout: TIMEOUT,
     });
 
-    switch (auth) {
-      case AUTH_TYPE_USERNAME:
-        // TODO throw error if no username
-        await page.waitForSelector(USERNAME, {
-          timeout: 1000,
+    Logger.debug(url.match(GRAASP_VIEWER));
+    Logger.debug(url);
+
+    // login routine depends on the origin
+    if (url.match(GRAASP_VIEWER)) {
+      await page.waitForSelector(VIEWER_USERNAME, {
+        timeout: ELEMENTS_TIMEOUT,
+      });
+      await page.type(VIEWER_USERNAME, username);
+      await page.type(VIEWER_PASSWORD, password);
+      await signInViewer(page);
+    } else if (url.match(GRAASP_CLOUD)) {
+      let auth = AUTH_TYPE_ANONYMOUS;
+      // this endpoint will return a 401 so we catch to find the auth type
+      try {
+        const loginTypeResponse = await request({
+          uri: loginTypeUrl,
+          json: true,
         });
-        await page.type(USERNAME, username);
-        await signIn(page);
-        break;
+        ({ body: { auth } = {} } = loginTypeResponse);
+      } catch (err) {
+        ({ error: { auth } = {} } = err);
+      }
 
-      case AUTH_TYPE_PASSWORD:
-        // TODO throw error if no username
-        await page.waitForSelector(USERNAME, {
-          timeout: 1000,
-        });
-        await page.type(USERNAME, username);
-        await page.type(PASSWORD, password);
-        await signIn(page);
-        break;
+      switch (auth) {
+        case AUTH_TYPE_USERNAME:
+          // TODO throw error if no username
+          await page.waitForSelector(CLOUD_USERNAME, {
+            timeout: 1000,
+          });
+          await page.type(CLOUD_USERNAME, username);
+          await signIn(page);
+          break;
 
-      case AUTH_TYPE_ANONYMOUS:
-        await signIn(page);
-        break;
+        case AUTH_TYPE_PASSWORD:
+          // TODO throw error if no username
+          await page.waitForSelector(CLOUD_USERNAME, {
+            timeout: 1000,
+          });
+          await page.type(CLOUD_USERNAME, username);
+          await page.type(CLOUD_PASSWORD, password);
+          await signIn(page);
+          break;
 
-      default:
+        case AUTH_TYPE_ANONYMOUS:
+          await signIn(page);
+          break;
+
+        default:
+      }
+    } else {
+      throw Error(`Unexpected origin: ${url}`);
     }
 
     // wait three more seconds just in case, mainly to wait for iframes to load
@@ -925,7 +956,8 @@ const convertSpaceToFile = async (id, body, headers) => {
   const languageCode = lang.split('_')[0];
 
   // build url from query parameters
-  const url = `${GRAASP_HOST}/${languageCode}/pages/${id}/export`;
+  const { origin = GRAASP_HOST } = headers;
+  const url = `${origin}/${languageCode}/pages/${id}/export`;
   const loginTypeUrl = `${AUTH_TYPE_HOST}/${id}`;
 
   const page = await scrape({
