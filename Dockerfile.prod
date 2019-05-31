@@ -4,6 +4,9 @@ ENV AWS_DEFAULT_REGION eu-central-1
 
 ENV NPM_CONFIG_SERVERLESS_CHROME_SKIP_DOWNLOAD true
 
+# add sentry for the post deploy hook
+RUN curl -sL https://sentry.io/get-cli/ | bash
+
 # install yarn
 RUN npm install --global yarn
 
