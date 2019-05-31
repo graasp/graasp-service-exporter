@@ -1,11 +1,46 @@
+import { HEADER } from './selectors';
+import Logger from '../utils/Logger';
+import { TMP_FOLDER } from '../config';
+
+// creating a new element does not throw an error (setAttribute do)
+const addSrcdocWithContentToIframe = (iframe, contents) => {
+  // this function runs inside the dom so document will be defined
+  // eslint-disable-next-line no-undef
+  const newIframe = document.createElement('iframe');
+  const src = iframe.getAttribute('src');
+  newIframe.srcdoc = contents[src];
+  newIframe.style.height = iframe.style.height;
+  iframe.after(newIframe);
+  iframe.remove();
+};
+
+const addSrcdocWithContentToIframes = async (iframes, contents, page) => {
+  // using for-of-loop for readability when using await inside a loop
+  // where await is needed due to requirement of sequential steps
+  // check for discussion: http://bit.ly/2JcMMLk
+  // eslint-disable-next-line no-restricted-syntax
+  for (const iframe of iframes) {
+    // eslint-disable-next-line no-await-in-loop
+    await page.evaluate(addSrcdocWithContentToIframe, iframe, contents);
+  }
+};
+
 /* eslint no-param-reassign: ["error", { "props": true, "ignorePropertyModificationsFor": ["el"] }] */
 const adjustElementHeight = el => {
   const height = el.clientHeight;
   el.style.height = `${height}px`;
 };
 
-const evalAdjustElementHeight = async (page, element) => {
-  await page.evaluate(adjustElementHeight, element);
+const adjustHeightForElements = async (elements, page) => {
+  Logger.debug('replacing elements height');
+  // using for-of-loop for readability when using await inside a loop
+  // where await is needed due to requirement of sequential steps
+  // check for discussion: http://bit.ly/2JcMMLk
+  // eslint-disable-next-line no-restricted-syntax
+  for (const element of elements) {
+    // eslint-disable-next-line no-await-in-loop
+    await page.evaluate(adjustElementHeight, element);
+  }
 };
 
 const getSubpagesContent = (
@@ -42,8 +77,16 @@ const makeElementLinkAbsolute = (el, attrName, baseUrl) => {
   }
 };
 
-const evalMakeElementLinkAbsolute = async (page, iframe, attrName, baseUrl) => {
-  await page.evaluate(makeElementLinkAbsolute, iframe, attrName, baseUrl);
+const makeElementsLinkAbsolute = async (elements, attrName, baseUrl, page) => {
+  // using for-of-loop for readability when using await inside a loop
+  // where await is needed due to requirement of sequential steps
+  // check for discussion: http://bit.ly/2JcMMLk
+  // eslint-disable-next-line no-restricted-syntax
+  for (const element of elements) {
+    // make absolute iframe url
+    // eslint-disable-next-line no-await-in-loop
+    await page.evaluate(makeElementLinkAbsolute, element, attrName, baseUrl);
+  }
 };
 
 const replaceElementWithScreenshot = (el, path) => {
@@ -60,9 +103,19 @@ const replaceElementWithScreenshot = (el, path) => {
   el.remove();
 };
 
-const evalReplaceElementWithScreenshot = async (page, element, folder) => {
-  await page.evaluate(replaceElementWithScreenshot, element, folder);
+const replaceElementsWithScreenshots = async (elements, page) => {
+  Logger.debug('replacing elements with screenshots');
+
+  // using for-of-loop for readability when using await inside a loop
+  // where await is needed due to requirement of sequential steps
+  // check for discussion: http://bit.ly/2JcMMLk
+  // eslint-disable-next-line no-restricted-syntax
+  for (const element of elements) {
+    // eslint-disable-next-line no-await-in-loop
+    await page.evaluate(replaceElementWithScreenshot, element, TMP_FOLDER);
+  }
 };
+
 const evalGetSrcFromElement = async (page, element) => {
   const url = await page.evaluate(el => el.getAttribute('src'), element);
   return url;
@@ -72,13 +125,32 @@ const evalSetIdToElement = async (page, element, id) => {
   await page.evaluate((el, newId) => el.setAttribute('id', newId), element, id);
 };
 
+const evalBackground = async (page, baseUrl) => {
+  let backgroundUrl = await page.$eval(
+    HEADER,
+    el => el.dataset.backgroundImage
+  );
+  if (backgroundUrl) {
+    if (backgroundUrl.startsWith('./')) {
+      backgroundUrl = baseUrl + backgroundUrl.substring(2);
+    } else if (backgroundUrl.startsWith('//')) {
+      backgroundUrl = `https:${backgroundUrl}`;
+    } else if (!backgroundUrl.startsWith('http')) {
+      backgroundUrl = baseUrl + backgroundUrl;
+    }
+
+    return backgroundUrl;
+  }
+  return null;
+};
+
 export {
+  addSrcdocWithContentToIframes,
   getSubpagesContent,
-  makeElementLinkAbsolute,
-  evalMakeElementLinkAbsolute,
-  evalAdjustElementHeight,
-  replaceElementWithScreenshot,
-  evalReplaceElementWithScreenshot,
+  adjustHeightForElements,
+  replaceElementsWithScreenshots,
+  makeElementsLinkAbsolute,
   evalGetSrcFromElement,
   evalSetIdToElement,
+  evalBackground,
 };

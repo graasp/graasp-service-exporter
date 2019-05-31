@@ -21,7 +21,8 @@
   "private": true,
   "scripts": {
     "build": "babel src -d dist --ignore **/*.test.js && mkdir -p dist/tmp && mkdir -p dist/services/css && cpy 'src/services/css/*.css' 'dist/services/css/' ",
-    "test": "mkdir -p src/tmp && jest src --coverage && rm -r src/tmp",
+    "test": "mkdir -p src/tmp && jest src && rm -r src/tmp",
+    "test:coverage": "mkdir -p src/tmp && jest src --coverage && rm -r src/tmp",
     "lint": "eslint .",
     "start": "yarn start:local",
     "start:debug": "SLS_DEBUG=* serverless offline start --stage local",
@@ -53,6 +54,7 @@
     "cpy-cli": "2.0.0",
     "dateformat": "3.0.3",
     "epub-gen": "https://github.com/graasp/epub-gen",
+    "glob": "7.1.4",
     "html-entities": "1.2.1",
     "puppeteer": "1.13.0",
     "raven": "2.6.4",
