@@ -36,6 +36,7 @@
     "start:dev": "serverless offline start --stage dev",
     "predeploy:dev": "yarn build && yarn env:dev",
     "predeploy:prod": "yarn build && yarn env:prod",
+    "postdeploy:prod": "./scripts/release.sh",
     "domain:create:dev": "serverless create_domain --stage dev",
     "domain:delete:dev": "serverless delete_domain --stage dev",
     "domain:create:prod": "serverless create_domain --stage prod",

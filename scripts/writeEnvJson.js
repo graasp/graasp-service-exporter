@@ -19,6 +19,9 @@ const {
   ACCOUNT_ID,
   REGION,
   SENTRY_DSN,
+  AUTH_TYPE_HOST,
+  CERTIFICATE_ARN,
+  DOMAIN_NAME,
 } = process.env;
 
 // parse boolean
@@ -38,6 +41,9 @@ const env = JSON.stringify({
   ACCOUNT_ID,
   REGION,
   SENTRY_DSN,
+  AUTH_TYPE_HOST,
+  CERTIFICATE_ARN,
+  DOMAIN_NAME,
 });
 
 const { stage } = argv;
