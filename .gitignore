@@ -54,3 +54,6 @@ yarn-error.log*
 # exclude unused coverage information
 .nyc_output
 coverage.lcov
+
+# codeship
+*.aes

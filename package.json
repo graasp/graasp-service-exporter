@@ -25,6 +25,9 @@
     "test": "mkdir -p src/tmp && jest src && rm -r src/tmp",
     "test:coverage": "mkdir -p src/tmp && jest src --coverage && rm -r src/tmp",
     "lint": "eslint .",
+    "env:dev": "node scripts/writeEnvJson.js --stage dev",
+    "env:prod": "node scripts/writeEnvJson.js --stage prod",
+    "env:test": "node scripts/writeEnvJson.js --stage test",
     "start": "yarn start:local",
     "start:debug": "SLS_DEBUG=* serverless offline start --stage local",
     "prestart:local": "yarn build",
@@ -76,11 +79,9 @@
     "@commitlint/config-conventional": "7.5.0",
     "babel-eslint": "10.0.1",
     "eslint": "5.15.3",
-    "eslint-config-airbnb": "17.1.0",
+    "eslint-config-airbnb-base": "13.1.0",
     "eslint-config-prettier": "4.1.0",
     "eslint-plugin-import": "2.16.0",
-    "eslint-plugin-jsx-a11y": "6.2.1",
-    "eslint-plugin-react": "7.12.4",
     "husky": "1.3.1",
     "jest": "24.8.0",
     "prettier": "1.16.4",
@@ -91,7 +92,8 @@
     "serverless-offline-sns": "0.49.0",
     "serverless-s3-local": "0.3.23",
     "serverless-sentry": "1.2.0",
-    "standard-version": "5.0.2"
+    "standard-version": "5.0.2",
+    "yargs": "13.2.4"
   },
   "release": {
     "analyzeCommits": "conventional"
