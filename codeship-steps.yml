@@ -1,0 +1,34 @@
+# default
+# -------
+# always run the tests and lint the codebase
+- type: parallel
+  name: default
+  steps:
+    - name: lint
+      service: app-test
+      command: yarn lint
+    - name: test
+      service: app-test
+      command: yarn test
+
+# development:
+# runs on develop branch
+- type: serial
+  tag: develop
+  name: dev
+  steps:
+    - name: deploy-dev
+      service: app-dev
+      command: yarn deploy:dev
+
+# production
+# ----------
+# runs when pushing a version tag and requires manual approval before deploying to production
+- type: manual
+  # matches v<major>.<minor>.<patch>[-<meta>] version format
+  tag: ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(\-[0-9A-Za-z]*)?$
+  name: tag
+  steps:
+    - name: deploy-prod
+      service: app-prod
+      command: yarn deploy:prod

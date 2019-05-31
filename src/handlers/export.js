@@ -7,6 +7,7 @@ import {
   S3_HOST,
   PENDING_STATUS,
   EXPORT_TOPIC,
+  CORS_HEADERS,
 } from '../config';
 import { publishSnsTopic } from '../services/sns';
 
@@ -35,6 +36,9 @@ const postExport = async ({ pathParameters, headers, body } = {}) => {
     if (!id || !ObjectId.isValid(id)) {
       return {
         statusCode: 422,
+        headers: {
+          ...CORS_HEADERS,
+        },
         body: JSON.stringify({
           message: 'error: invalid space id',
         }),
@@ -43,12 +47,19 @@ const postExport = async ({ pathParameters, headers, body } = {}) => {
 
     const bodyJson = JSON.parse(body);
 
+    // only log headers and body when debugging
+    Logger.debug(headers);
+    Logger.debug(bodyJson);
+
     if (bodyJson.format) {
       // validate format is supported
       Logger.debug(`validating format ${bodyJson.format}`);
       if (!SUPPORTED_FORMATS.includes(bodyJson.format)) {
         return {
           statusCode: 422,
+          headers: {
+            ...CORS_HEADERS,
+          },
           body: JSON.stringify({
             message: 'error: invalid format',
           }),
@@ -72,20 +83,37 @@ const postExport = async ({ pathParameters, headers, body } = {}) => {
     });
 
     // return 202 with location
-    return {
+    const response = {
       statusCode: 202,
       headers: {
+        ...CORS_HEADERS,
         Location: `${GRAASP_FILES_HOST}/queue/${fileId}`,
       },
     };
+
+    // debug logs
+    Logger.debug('response succeeded');
+    Logger.debug(response);
+
+    return response;
   } catch (err) {
     Logger.error(err);
-    return {
+
+    const response = {
       statusCode: 500,
+      headers: {
+        ...CORS_HEADERS,
+      },
       body: JSON.stringify({
         message: `${err.name}: ${err.message}`,
       }),
     };
+
+    // debug logs
+    Logger.debug('response failed');
+    Logger.debug(response);
+
+    return response;
   }
 };
 
@@ -98,6 +126,9 @@ const getExport = async ({ pathParameters } = {}) => {
     if (!id || !ObjectId.isValid(id.split('.')[0])) {
       return {
         statusCode: 422,
+        headers: {
+          ...CORS_HEADERS,
+        },
         body: JSON.stringify({
           message: 'error: invalid document id',
         }),
@@ -111,17 +142,24 @@ const getExport = async ({ pathParameters } = {}) => {
         statusCode: 303,
         headers: {
           Location: `${S3_HOST}/${id}`,
+          ...CORS_HEADERS,
         },
       };
     }
     return {
       statusCode: 200,
+      headers: {
+        ...CORS_HEADERS,
+      },
       body: JSON.stringify({ status: PENDING_STATUS }),
     };
   } catch (err) {
     Logger.error(err);
     return {
       statusCode: 500,
+      headers: {
+        ...CORS_HEADERS,
+      },
       body: JSON.stringify({
         message: `${err.name}: ${err.message}`,
       }),

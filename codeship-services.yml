@@ -1,0 +1,17 @@
+# test
+app-test:
+  build: .
+  dockerfile: Dockerfile.test
+  encrypted_env_file: .env.test.encrypted
+
+# development
+app-dev:
+  build: .
+  dockerfile: Dockerfile.dev
+  encrypted_env_file: .env.dev.encrypted
+
+# production
+app-prod:
+  build: .
+  dockerfile: Dockerfile.prod
+  encrypted_env_file: .env.prod.encrypted
