@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [0.3.1](https://github.com/graasp/graasp-service-exporter/compare/v0.3.0...v0.3.1) (2019-05-31)
+
+### Bug Fixes
+
+- fix missing sentry-cli binary ([d81d45e](https://github.com/graasp/graasp-service-exporter/commit/d81d45e))
+
 # [0.3.0](https://github.com/graasp/graasp-service-exporter/compare/v0.2.0...v0.3.0) (2019-05-31)
 
 ### Bug Fixes
