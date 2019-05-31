@@ -2,6 +2,41 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+# [0.3.0](https://github.com/graasp/graasp-service-exporter/compare/v0.2.0...v0.3.0) (2019-05-31)
+
+### Bug Fixes
+
+- add forked epub-gen to dependencies ([517e4f6](https://github.com/graasp/graasp-service-exporter/commit/517e4f6)), closes [#26](https://github.com/graasp/graasp-service-exporter/issues/26)
+- add missing environment variables ([c4ad035](https://github.com/graasp/graasp-service-exporter/commit/c4ad035))
+- blank screenshots ([96b99f3](https://github.com/graasp/graasp-service-exporter/commit/96b99f3)), closes [#44](https://github.com/graasp/graasp-service-exporter/issues/44)
+- fix issues with cors and epub-gen ([a36706d](https://github.com/graasp/graasp-service-exporter/commit/a36706d)), closes [#50](https://github.com/graasp/graasp-service-exporter/issues/50)
+- fix issues with writing of environment files in codeship ([b716172](https://github.com/graasp/graasp-service-exporter/commit/b716172))
+- fix offline labs error ([3382897](https://github.com/graasp/graasp-service-exporter/commit/3382897)), closes [#43](https://github.com/graasp/graasp-service-exporter/issues/43)
+- toggle parameters, refactor, jest coverage as scripty ([ec57a7e](https://github.com/graasp/graasp-service-exporter/commit/ec57a7e))
+- use default cover background link for cover page ([6b06ea1](https://github.com/graasp/graasp-service-exporter/commit/6b06ea1)), closes [#29](https://github.com/graasp/graasp-service-exporter/issues/29)
+- use https protocol when retrieving cover image url ([dde64dc](https://github.com/graasp/graasp-service-exporter/commit/dde64dc))
+
+### Features
+
+- add interactive option for epub export (except embedded html) ([4b5e9e0](https://github.com/graasp/graasp-service-exporter/commit/4b5e9e0))
+- add interactive youtube embed and unsupported div screenshots ([d3ad096](https://github.com/graasp/graasp-service-exporter/commit/d3ad096)), closes [#21](https://github.com/graasp/graasp-service-exporter/issues/21)
+- add mode option: static/offline/interactive ([3c0782f](https://github.com/graasp/graasp-service-exporter/commit/3c0782f)), closes [#37](https://github.com/graasp/graasp-service-exporter/issues/37)
+- add one-file lab as interactive iframe (tbc) ([f5f2924](https://github.com/graasp/graasp-service-exporter/commit/f5f2924))
+- add styles.css file, copy this file in dist when building ([1e2dbd5](https://github.com/graasp/graasp-service-exporter/commit/1e2dbd5)), closes [#32](https://github.com/graasp/graasp-service-exporter/issues/32)
+- add styles.css file, copy this file in dist when building ([2a1314e](https://github.com/graasp/graasp-service-exporter/commit/2a1314e)), closes [#32](https://github.com/graasp/graasp-service-exporter/issues/32)
+- generate cover image for epub export ([eb45278](https://github.com/graasp/graasp-service-exporter/commit/eb45278)), closes [#24](https://github.com/graasp/graasp-service-exporter/issues/24)
+- generate cover image for epub export ([6d9561e](https://github.com/graasp/graasp-service-exporter/commit/6d9561e)), closes [#24](https://github.com/graasp/graasp-service-exporter/issues/24)
+- handle cloud and viewer origin cases ([b39493b](https://github.com/graasp/graasp-service-exporter/commit/b39493b)), closes [#48](https://github.com/graasp/graasp-service-exporter/issues/48)
+- handle objects, labs iframe, audios elements (screenshots vs tag) ([d4f1046](https://github.com/graasp/graasp-service-exporter/commit/d4f1046)), closes [#33](https://github.com/graasp/graasp-service-exporter/issues/33)
+- login to pages view ([39101e0](https://github.com/graasp/graasp-service-exporter/commit/39101e0)), closes [#12](https://github.com/graasp/graasp-service-exporter/issues/12)
+- scrape correctly page views phases ([700c544](https://github.com/graasp/graasp-service-exporter/commit/700c544)), closes [#18](https://github.com/graasp/graasp-service-exporter/issues/18)
+- use background url from pages view ([36b04ce](https://github.com/graasp/graasp-service-exporter/commit/36b04ce))
+- use background url from pages view ([a9c72c9](https://github.com/graasp/graasp-service-exporter/commit/a9c72c9))
+- use css styles file, scrape phase description ([83b5ce0](https://github.com/graasp/graasp-service-exporter/commit/83b5ce0)), closes [#31](https://github.com/graasp/graasp-service-exporter/issues/31)
+- use css styles file, scrape phase description ([d9a3f62](https://github.com/graasp/graasp-service-exporter/commit/d9a3f62)), closes [#31](https://github.com/graasp/graasp-service-exporter/issues/31)
+- use lang to export corresponding offline lab content ([226e03b](https://github.com/graasp/graasp-service-exporter/commit/226e03b)), closes [#38](https://github.com/graasp/graasp-service-exporter/issues/38)
+- **cover:** write date, username and generated sentence ([d00c66c](https://github.com/graasp/graasp-service-exporter/commit/d00c66c)), closes [#42](https://github.com/graasp/graasp-service-exporter/issues/42)
+
 # [0.2.0](https://github.com/graasp/graasp-service-exporter/compare/v0.1.0...v0.2.0) (2019-03-25)
 
 ### Bug Fixes
