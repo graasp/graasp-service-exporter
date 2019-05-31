@@ -11,7 +11,6 @@ const {
   CI_COMMIT_ID = undefined,
   REGION = 'eu-central-1',
   ACCOUNT_ID = null,
-  CHROME_PATH = '/opt/headless_shell',
   LAMBDA_TASK_ROOT,
   STAGE,
   TMP_PATH = './tmp',
@@ -34,7 +33,6 @@ export {
   CI_COMMIT_ID,
   ACCOUNT_ID,
   REGION,
-  CHROME_PATH,
   LAMBDA_TASK_ROOT,
   STAGE,
   AUTH_TYPE_HOST,
@@ -71,3 +69,8 @@ export const FONT = 'Arial';
 export const FONT_COLOR = 'black';
 
 export const CSS_STYLES_FILE = path.join(__dirname, 'services/css/styles.css');
+
+export const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Credentials': true,
+};

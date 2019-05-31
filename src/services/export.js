@@ -1,12 +1,10 @@
-import Puppeteer from 'puppeteer';
-import puppeteerErrors from 'puppeteer/Errors';
-import Epub from 'epub-gen';
+import chromium from 'chrome-aws-lambda';
+import Epub from '@graasp/epub';
 import S3 from 'aws-sdk/clients/s3';
 import fs from 'fs';
 import rimraf from 'rimraf';
 import request from 'request-promise-native';
 import cheerio from 'cheerio';
-
 import { XmlEntities } from 'html-entities';
 import {
   GRAASP_HOST,
@@ -32,7 +30,6 @@ import {
   SCREENSHOT_FORMAT,
 } from '../config';
 import Logger from '../utils/Logger';
-import getChrome from '../utils/getChrome';
 import isLambda from '../utils/isLambda';
 import coverImage from './cover';
 import {
@@ -73,6 +70,8 @@ import {
   makeElementsLinkAbsolute,
   evalBackground,
 } from './utils';
+
+const puppeteerErrors = chromium.puppeteer.errors;
 
 const s3 = new S3({
   s3ForcePathStyle: isLambda ? undefined : true,
@@ -830,10 +829,11 @@ const scrape = async ({
   lang,
 }) => {
   Logger.debug('instantiating puppeteer');
-  const chrome = await getChrome();
-
-  const browser = await Puppeteer.connect({
-    browserWSEndpoint: chrome.endpoint,
+  const browser = await chromium.puppeteer.launch({
+    args: chromium.args,
+    defaultViewport: chromium.defaultViewport,
+    executablePath: await chromium.executablePath,
+    headless: chromium.headless,
   });
 
   try {
@@ -853,6 +853,7 @@ const scrape = async ({
       timeout: TIMEOUT,
     });
 
+    Logger.debug('figuring out auth type');
     Logger.debug(url.match(GRAASP_VIEWER));
     Logger.debug(url);
 
@@ -872,10 +873,19 @@ const scrape = async ({
           uri: loginTypeUrl,
           json: true,
         });
+        Logger.debug(loginTypeResponse);
         ({ body: { auth } = {} } = loginTypeResponse);
       } catch (err) {
+        Logger.debug(err);
         ({ error: { auth } = {} } = err);
+
+        if (!auth) {
+          throw err;
+        }
       }
+
+      // only log the type of auth in debug mode
+      Logger.debug(`auth type: ${auth}`);
 
       switch (auth) {
         case AUTH_TYPE_USERNAME:
@@ -920,13 +930,12 @@ const scrape = async ({
 
     const formattedPage = await formatSpace(page, format, mode, lang, username);
     await browser.close();
-    setTimeout(() => chrome.instance.kill(), 0);
     return formattedPage;
   } catch (err) {
     Logger.error(`error scraping ${url}`, err);
-    browser.close();
-    setTimeout(() => chrome.instance.kill(), 0);
     return false;
+  } finally {
+    await browser.close();
   }
 };
 

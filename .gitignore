@@ -23,6 +23,7 @@ jspm_packages
 .env.test.local
 .env.production.local
 env*
+.env*
 
 # exclude encrypted analytics
 !.env*.encrypted
@@ -53,3 +54,6 @@ yarn-error.log*
 # exclude unused coverage information
 .nyc_output
 coverage.lcov
+
+# codeship
+*.aes

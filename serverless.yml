@@ -30,6 +30,7 @@ provider:
     API_PORT: ${file(./env.${self:provider.stage}.json):API_PORT}
     SNS_PORT: ${file(./env.${self:provider.stage}.json):SNS_PORT}
     GRAASP_HOST: ${file(./env.${self:provider.stage}.json):GRAASP_HOST}
+    AUTH_TYPE_HOST: ${file(./env.${self:provider.stage}.json):AUTH_TYPE_HOST}
     LOGGING_LEVEL: ${file(./env.${self:provider.stage}.json):LOGGING_LEVEL}
     DEBUG: ${file(./env.${self:provider.stage}.json):DEBUG}
     TMP_PATH: ${file(./env.${self:provider.stage}.json):TMP_PATH}
@@ -97,11 +98,17 @@ package:
   include:
     - dist/**
   exclude:
-    - node_modules/puppeteer/.local-chromium/**
+    # exclude chrome binaries, these are obtained in production from another layer
+    - node_modules/chrome-aws-lambda/**
+    - node_modules/puppeteer-core/**
+    - node_modules/puppeteer/**
+    # exclude the aws sdk as it is already available in the serverless environment
     - node_modules/aws-sdk/**
 
 functions:
   getStatus:
+    layers:
+      - arn:aws:lambda:${self:provider.environment.REGION}:${self:provider.environment.ACCOUNT_ID}:layer:graasp-service-chrome:6
     handler: dist/index.getStatusWithSentry
     events:
       - http:
@@ -110,6 +117,8 @@ functions:
           cors: true
 
   getVersion:
+    layers:
+      - arn:aws:lambda:${self:provider.environment.REGION}:${self:provider.environment.ACCOUNT_ID}:layer:graasp-service-chrome:6
     handler: dist/index.getVersionWithSentry
     events:
       - http:
@@ -118,6 +127,8 @@ functions:
           cors: true
 
   throwError:
+    layers:
+      - arn:aws:lambda:${self:provider.environment.REGION}:${self:provider.environment.ACCOUNT_ID}:layer:graasp-service-chrome:6
     handler: dist/index.throwErrorWithSentry
     events:
       - http:
@@ -126,6 +137,8 @@ functions:
           cors: true
 
   getExport:
+    layers:
+      - arn:aws:lambda:${self:provider.environment.REGION}:${self:provider.environment.ACCOUNT_ID}:layer:graasp-service-chrome:6
     handler: dist/index.getExportWithSentry
     events:
       - http:
@@ -138,6 +151,8 @@ functions:
                 id: true
 
   postExport:
+    layers:
+      - arn:aws:lambda:${self:provider.environment.REGION}:${self:provider.environment.ACCOUNT_ID}:layer:graasp-service-chrome:6
     handler: dist/index.postExportWithSentry
     events:
       - http:
@@ -152,15 +167,16 @@ functions:
   generateExport:
     handler: dist/index.generateExportWithSentry
     memorySize: 1536
-    # todo: five minute timeout for export generation
-    timeout: 30
+    timeout: 300
     layers:
-      - arn:aws:lambda:${self:provider.environment.REGION}:${self:provider.environment.ACCOUNT_ID}:layer:graasp-service-chrome:2
+      - arn:aws:lambda:${self:provider.environment.REGION}:${self:provider.environment.ACCOUNT_ID}:layer:graasp-service-chrome:6
     events:
       - sns: export-${opt:stage}
     onError: arn:aws:sns:${self:provider.environment.REGION}:${self:provider.environment.ACCOUNT_ID}:dlq-${opt:stage}
 
   handleError:
+    layers:
+      - arn:aws:lambda:${self:provider.environment.REGION}:${self:provider.environment.ACCOUNT_ID}:layer:graasp-service-chrome:6
     handler: dist/index.handleErrorWithSentry
     events:
       - sns: dlq-${opt:stage}
