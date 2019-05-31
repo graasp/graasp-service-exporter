@@ -1,8 +1,8 @@
 import chromium from 'chrome-aws-lambda';
-// import Epub from 'epub-gen';
+import Epub from '@graasp/epub';
 import S3 from 'aws-sdk/clients/s3';
-// import fs from 'fs';
-// import rimraf from 'rimraf';
+import fs from 'fs';
+import rimraf from 'rimraf';
 import request from 'request-promise-native';
 import cheerio from 'cheerio';
 import { XmlEntities } from 'html-entities';
@@ -25,7 +25,7 @@ import {
   MODE_READONLY,
   MODE_STATIC,
   DEFAULT_LANGUAGE,
-  // CSS_STYLES_FILE,
+  CSS_STYLES_FILE,
   VIEWPORT_WIDTH,
   SCREENSHOT_FORMAT,
 } from '../config';
@@ -71,7 +71,7 @@ import {
   evalBackground,
 } from './utils';
 
-const { puppeteerErrors } = chromium.puppeteer;
+const puppeteerErrors = chromium.puppeteer.errors;
 
 const s3 = new S3({
   s3ForcePathStyle: isLambda ? undefined : true,
@@ -87,9 +87,9 @@ const generateEpub = async ({
   title = 'Untitled',
   author = 'Anonymous',
   username = 'Anonymous',
-  // chapters = [],
+  chapters = [],
   background = COVER_DEFAULT_PATH,
-  // screenshots = [],
+  screenshots = [],
 }) => {
   Logger.debug('generating epub');
   // main options
@@ -110,59 +110,59 @@ const generateEpub = async ({
   };
   // we wait for the cover image because it loads asynchronously the bakground image file
   await coverImage(background, title, author, metadata);
-  //
-  // // make sure that all content sections have data
-  // const content = chapters.filter(chapter => chapter.title && chapter.data);
-  //
-  // // css styles
-  // const styles = fs.readFileSync(CSS_STYLES_FILE);
-  //
-  // const output = `${TMP_FOLDER}/${generateRandomString()}.epub`;
-  //
-  // const options = {
-  //   ...main,
-  //   content,
-  //   output,
-  //   css: styles,
-  //   tempDir: TMP_FOLDER,
-  // };
-  return new Promise(); // todo: remove
+
+  // make sure that all content sections have data
+  const content = chapters.filter(chapter => chapter.title && chapter.data);
+
+  // css styles
+  const styles = fs.readFileSync(CSS_STYLES_FILE);
+
+  const output = `${TMP_FOLDER}/${generateRandomString()}.epub`;
+
+  const options = {
+    ...main,
+    content,
+    output,
+    css: styles,
+    tempDir: TMP_FOLDER,
+  };
+
   // disable this lint because of our epub generation library
   // eslint-disable-next-line no-new
-  // return new Epub(options).promise.then(
-  //   () =>
-  //     new Promise((resolve, reject) => {
-  //       const stream = fs.createReadStream(output);
-  //
-  //       const epub = [];
-  //       stream.on('data', chunk => epub.push(chunk));
-  //       stream.on('error', () => reject(new Error()));
-  //       stream.on('end', () => {
-  //         const rvalue = Buffer.concat(epub);
-  //         rimraf(output, error => {
-  //           Logger.debug(`info: deleting temporary epub ${output}`);
-  //           if (error) {
-  //             console.error(error);
-  //           }
-  //         });
-  //         screenshots.forEach(path => {
-  //           Logger.debug(`info: deleting temporary screenshot ${path}`);
-  //           rimraf(path, error => {
-  //             if (error) {
-  //               console.error(error);
-  //             }
-  //           });
-  //         });
-  //         Logger.debug(`info: deleting temporary cover ${COVER_PATH}`);
-  //         rimraf(COVER_PATH, error => {
-  //           if (error) {
-  //             console.error(error);
-  //           }
-  //         });
-  //         resolve(rvalue);
-  //       });
-  //     })
-  // );
+  return new Epub(options).promise.then(
+    () =>
+      new Promise((resolve, reject) => {
+        const stream = fs.createReadStream(output);
+
+        const epub = [];
+        stream.on('data', chunk => epub.push(chunk));
+        stream.on('error', () => reject(new Error()));
+        stream.on('end', () => {
+          const rvalue = Buffer.concat(epub);
+          rimraf(output, error => {
+            Logger.debug(`info: deleting temporary epub ${output}`);
+            if (error) {
+              console.error(error);
+            }
+          });
+          screenshots.forEach(path => {
+            Logger.debug(`info: deleting temporary screenshot ${path}`);
+            rimraf(path, error => {
+              if (error) {
+                console.error(error);
+              }
+            });
+          });
+          Logger.debug(`info: deleting temporary cover ${COVER_PATH}`);
+          rimraf(COVER_PATH, error => {
+            if (error) {
+              console.error(error);
+            }
+          });
+          resolve(rvalue);
+        });
+      })
+  );
 };
 
 const retrieveBaseUrl = async (baseElement, host) => {

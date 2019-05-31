@@ -69,3 +69,8 @@ export const FONT = 'Arial';
 export const FONT_COLOR = 'black';
 
 export const CSS_STYLES_FILE = path.join(__dirname, 'services/css/styles.css');
+
+export const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Credentials': true,
+};

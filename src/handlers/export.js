@@ -7,6 +7,7 @@ import {
   S3_HOST,
   PENDING_STATUS,
   EXPORT_TOPIC,
+  CORS_HEADERS,
 } from '../config';
 import { publishSnsTopic } from '../services/sns';
 
@@ -35,6 +36,9 @@ const postExport = async ({ pathParameters, headers, body } = {}) => {
     if (!id || !ObjectId.isValid(id)) {
       return {
         statusCode: 422,
+        headers: {
+          ...CORS_HEADERS,
+        },
         body: JSON.stringify({
           message: 'error: invalid space id',
         }),
@@ -53,6 +57,9 @@ const postExport = async ({ pathParameters, headers, body } = {}) => {
       if (!SUPPORTED_FORMATS.includes(bodyJson.format)) {
         return {
           statusCode: 422,
+          headers: {
+            ...CORS_HEADERS,
+          },
           body: JSON.stringify({
             message: 'error: invalid format',
           }),
@@ -78,9 +85,9 @@ const postExport = async ({ pathParameters, headers, body } = {}) => {
     // return 202 with location
     const response = {
       statusCode: 202,
-      body: {
-        redirect: true,
-        location: `${GRAASP_FILES_HOST}/queue/${fileId}`,
+      headers: {
+        ...CORS_HEADERS,
+        Location: `${GRAASP_FILES_HOST}/queue/${fileId}`,
       },
     };
 
@@ -94,6 +101,9 @@ const postExport = async ({ pathParameters, headers, body } = {}) => {
 
     const response = {
       statusCode: 500,
+      headers: {
+        ...CORS_HEADERS,
+      },
       body: JSON.stringify({
         message: `${err.name}: ${err.message}`,
       }),
@@ -116,6 +126,9 @@ const getExport = async ({ pathParameters } = {}) => {
     if (!id || !ObjectId.isValid(id.split('.')[0])) {
       return {
         statusCode: 422,
+        headers: {
+          ...CORS_HEADERS,
+        },
         body: JSON.stringify({
           message: 'error: invalid document id',
         }),
@@ -129,17 +142,24 @@ const getExport = async ({ pathParameters } = {}) => {
         statusCode: 303,
         headers: {
           Location: `${S3_HOST}/${id}`,
+          ...CORS_HEADERS,
         },
       };
     }
     return {
       statusCode: 200,
+      headers: {
+        ...CORS_HEADERS,
+      },
       body: JSON.stringify({ status: PENDING_STATUS }),
     };
   } catch (err) {
     Logger.error(err);
     return {
       statusCode: 500,
+      headers: {
+        ...CORS_HEADERS,
+      },
       body: JSON.stringify({
         message: `${err.name}: ${err.message}`,
       }),

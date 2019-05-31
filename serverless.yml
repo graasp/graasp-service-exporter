@@ -167,8 +167,7 @@ functions:
   generateExport:
     handler: dist/index.generateExportWithSentry
     memorySize: 1536
-    # todo: five minute timeout for export generation
-    timeout: 30
+    timeout: 300
     layers:
       - arn:aws:lambda:${self:provider.environment.REGION}:${self:provider.environment.ACCOUNT_ID}:layer:graasp-service-chrome:6
     events:
