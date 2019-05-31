@@ -1,12 +1,10 @@
-import Puppeteer from 'puppeteer';
-import puppeteerErrors from 'puppeteer/Errors';
-import Epub from 'epub-gen';
+import chromium from 'chrome-aws-lambda';
+// import Epub from 'epub-gen';
 import S3 from 'aws-sdk/clients/s3';
-import fs from 'fs';
-import rimraf from 'rimraf';
+// import fs from 'fs';
+// import rimraf from 'rimraf';
 import request from 'request-promise-native';
 import cheerio from 'cheerio';
-
 import { XmlEntities } from 'html-entities';
 import {
   GRAASP_HOST,
@@ -27,12 +25,11 @@ import {
   MODE_READONLY,
   MODE_STATIC,
   DEFAULT_LANGUAGE,
-  CSS_STYLES_FILE,
+  // CSS_STYLES_FILE,
   VIEWPORT_WIDTH,
   SCREENSHOT_FORMAT,
 } from '../config';
 import Logger from '../utils/Logger';
-import getChrome from '../utils/getChrome';
 import isLambda from '../utils/isLambda';
 import coverImage from './cover';
 import {
@@ -74,6 +71,8 @@ import {
   evalBackground,
 } from './utils';
 
+const { puppeteerErrors } = chromium.puppeteer;
+
 const s3 = new S3({
   s3ForcePathStyle: isLambda ? undefined : true,
   endpoint: isLambda ? undefined : `http://localhost:${S3_PORT}`,
@@ -88,9 +87,9 @@ const generateEpub = async ({
   title = 'Untitled',
   author = 'Anonymous',
   username = 'Anonymous',
-  chapters = [],
+  // chapters = [],
   background = COVER_DEFAULT_PATH,
-  screenshots = [],
+  // screenshots = [],
 }) => {
   Logger.debug('generating epub');
   // main options
@@ -111,59 +110,59 @@ const generateEpub = async ({
   };
   // we wait for the cover image because it loads asynchronously the bakground image file
   await coverImage(background, title, author, metadata);
-
-  // make sure that all content sections have data
-  const content = chapters.filter(chapter => chapter.title && chapter.data);
-
-  // css styles
-  const styles = fs.readFileSync(CSS_STYLES_FILE);
-
-  const output = `${TMP_FOLDER}/${generateRandomString()}.epub`;
-
-  const options = {
-    ...main,
-    content,
-    output,
-    css: styles,
-    tempDir: TMP_FOLDER,
-  };
-
+  //
+  // // make sure that all content sections have data
+  // const content = chapters.filter(chapter => chapter.title && chapter.data);
+  //
+  // // css styles
+  // const styles = fs.readFileSync(CSS_STYLES_FILE);
+  //
+  // const output = `${TMP_FOLDER}/${generateRandomString()}.epub`;
+  //
+  // const options = {
+  //   ...main,
+  //   content,
+  //   output,
+  //   css: styles,
+  //   tempDir: TMP_FOLDER,
+  // };
+  return new Promise(); // todo: remove
   // disable this lint because of our epub generation library
   // eslint-disable-next-line no-new
-  return new Epub(options).promise.then(
-    () =>
-      new Promise((resolve, reject) => {
-        const stream = fs.createReadStream(output);
-
-        const epub = [];
-        stream.on('data', chunk => epub.push(chunk));
-        stream.on('error', () => reject(new Error()));
-        stream.on('end', () => {
-          const rvalue = Buffer.concat(epub);
-          rimraf(output, error => {
-            Logger.debug(`info: deleting temporary epub ${output}`);
-            if (error) {
-              console.error(error);
-            }
-          });
-          screenshots.forEach(path => {
-            Logger.debug(`info: deleting temporary screenshot ${path}`);
-            rimraf(path, error => {
-              if (error) {
-                console.error(error);
-              }
-            });
-          });
-          Logger.debug(`info: deleting temporary cover ${COVER_PATH}`);
-          rimraf(COVER_PATH, error => {
-            if (error) {
-              console.error(error);
-            }
-          });
-          resolve(rvalue);
-        });
-      })
-  );
+  // return new Epub(options).promise.then(
+  //   () =>
+  //     new Promise((resolve, reject) => {
+  //       const stream = fs.createReadStream(output);
+  //
+  //       const epub = [];
+  //       stream.on('data', chunk => epub.push(chunk));
+  //       stream.on('error', () => reject(new Error()));
+  //       stream.on('end', () => {
+  //         const rvalue = Buffer.concat(epub);
+  //         rimraf(output, error => {
+  //           Logger.debug(`info: deleting temporary epub ${output}`);
+  //           if (error) {
+  //             console.error(error);
+  //           }
+  //         });
+  //         screenshots.forEach(path => {
+  //           Logger.debug(`info: deleting temporary screenshot ${path}`);
+  //           rimraf(path, error => {
+  //             if (error) {
+  //               console.error(error);
+  //             }
+  //           });
+  //         });
+  //         Logger.debug(`info: deleting temporary cover ${COVER_PATH}`);
+  //         rimraf(COVER_PATH, error => {
+  //           if (error) {
+  //             console.error(error);
+  //           }
+  //         });
+  //         resolve(rvalue);
+  //       });
+  //     })
+  // );
 };
 
 const retrieveBaseUrl = async (baseElement, host) => {
@@ -830,10 +829,11 @@ const scrape = async ({
   lang,
 }) => {
   Logger.debug('instantiating puppeteer');
-  const chrome = await getChrome();
-
-  const browser = await Puppeteer.connect({
-    browserWSEndpoint: chrome.endpoint,
+  const browser = await chromium.puppeteer.launch({
+    args: chromium.args,
+    defaultViewport: chromium.defaultViewport,
+    executablePath: await chromium.executablePath,
+    headless: chromium.headless,
   });
 
   try {
@@ -853,6 +853,7 @@ const scrape = async ({
       timeout: TIMEOUT,
     });
 
+    Logger.debug('figuring out auth type');
     Logger.debug(url.match(GRAASP_VIEWER));
     Logger.debug(url);
 
@@ -872,10 +873,19 @@ const scrape = async ({
           uri: loginTypeUrl,
           json: true,
         });
+        Logger.debug(loginTypeResponse);
         ({ body: { auth } = {} } = loginTypeResponse);
       } catch (err) {
+        Logger.debug(err);
         ({ error: { auth } = {} } = err);
+
+        if (!auth) {
+          throw err;
+        }
       }
+
+      // only log the type of auth in debug mode
+      Logger.debug(`auth type: ${auth}`);
 
       switch (auth) {
         case AUTH_TYPE_USERNAME:
@@ -920,13 +930,12 @@ const scrape = async ({
 
     const formattedPage = await formatSpace(page, format, mode, lang, username);
     await browser.close();
-    setTimeout(() => chrome.instance.kill(), 0);
     return formattedPage;
   } catch (err) {
     Logger.error(`error scraping ${url}`, err);
-    browser.close();
-    setTimeout(() => chrome.instance.kill(), 0);
     return false;
+  } finally {
+    await browser.close();
   }
 };
 

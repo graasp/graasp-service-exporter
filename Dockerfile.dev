@@ -1,0 +1,14 @@
+FROM lambci/lambda:build-nodejs8.10
+
+ENV AWS_DEFAULT_REGION us-east-1
+
+ENV NPM_CONFIG_SERVERLESS_CHROME_SKIP_DOWNLOAD true
+
+# install yarn
+RUN npm install --global yarn
+
+COPY . .
+
+RUN yarn install
+
+CMD yarn deploy:dev

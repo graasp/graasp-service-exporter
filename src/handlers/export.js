@@ -43,6 +43,10 @@ const postExport = async ({ pathParameters, headers, body } = {}) => {
 
     const bodyJson = JSON.parse(body);
 
+    // only log headers and body when debugging
+    Logger.debug(headers);
+    Logger.debug(bodyJson);
+
     if (bodyJson.format) {
       // validate format is supported
       Logger.debug(`validating format ${bodyJson.format}`);
@@ -72,20 +76,34 @@ const postExport = async ({ pathParameters, headers, body } = {}) => {
     });
 
     // return 202 with location
-    return {
+    const response = {
       statusCode: 202,
-      headers: {
-        Location: `${GRAASP_FILES_HOST}/queue/${fileId}`,
+      body: {
+        redirect: true,
+        location: `${GRAASP_FILES_HOST}/queue/${fileId}`,
       },
     };
+
+    // debug logs
+    Logger.debug('response succeeded');
+    Logger.debug(response);
+
+    return response;
   } catch (err) {
     Logger.error(err);
-    return {
+
+    const response = {
       statusCode: 500,
       body: JSON.stringify({
         message: `${err.name}: ${err.message}`,
       }),
     };
+
+    // debug logs
+    Logger.debug('response failed');
+    Logger.debug(response);
+
+    return response;
   }
 };
 
