@@ -87,6 +87,7 @@ const postExport = async ({ pathParameters, headers, body } = {}) => {
       statusCode: 202,
       headers: {
         ...CORS_HEADERS,
+        'Access-Control-Expose-Headers': 'Location',
         Location: `${GRAASP_FILES_HOST}/queue/${fileId}`,
       },
     };
@@ -141,6 +142,7 @@ const getExport = async ({ pathParameters } = {}) => {
       return {
         statusCode: 303,
         headers: {
+          'Access-Control-Expose-Headers': 'Location',
           Location: `${S3_HOST}/${id}`,
           ...CORS_HEADERS,
         },
