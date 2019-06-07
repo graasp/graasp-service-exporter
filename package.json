@@ -8,7 +8,7 @@
       "!src/services/cover.js"
     ]
   },
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "Service to export PDF, PNG and EPUB versions of learning spaces on Graasp.",
   "main": "src/index.js",
   "author": "Graasp",

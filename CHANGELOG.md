@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [0.3.3](https://github.com/graasp/graasp-service-exporter/compare/v0.3.2...v0.3.3) (2019-06-07)
+
+### Bug Fixes
+
+- change unauthorized resources into screenshots ([7a5ca49](https://github.com/graasp/graasp-service-exporter/commit/7a5ca49)), closes [#56](https://github.com/graasp/graasp-service-exporter/issues/56)
+- expose location header ([3a5c977](https://github.com/graasp/graasp-service-exporter/commit/3a5c977)), closes [#55](https://github.com/graasp/graasp-service-exporter/issues/55)
+
 ## [0.3.2](https://github.com/graasp/graasp-service-exporter/compare/v0.3.1...v0.3.2) (2019-05-31)
 
 ### Bug Fixes
