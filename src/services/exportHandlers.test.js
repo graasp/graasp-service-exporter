@@ -26,12 +26,9 @@ import {
 } from './export';
 import {
   APP_ELEMENTS,
-  AUDIOS,
   EMBEDDED_ELEMENTS,
   GADGETS,
   LAB_ELEMENTS,
-  VIDEOS,
-  OBJECT_ELEMENTS,
 } from './selectors';
 
 let browser;
@@ -171,9 +168,8 @@ describe('handleAudios', () => {
 
   it('interactive: audios remain', async () => {
     const screenshots = await handleAudios(pageInteractive, MODE_INTERACTIVE);
-    await pageInteractive.waitFor(timeout);
-    expect(pageInteractive.waitForXPath(AUDIOS)).resolves.not.toThrow();
-    expect(screenshots.length).toBe(0);
+    fileExists(SCREENSHOT_FORMAT);
+    expect(screenshots.length).toBe(2);
   });
 
   it('read-only: audios become screenshots', async () => {
@@ -203,9 +199,8 @@ describe('handleVideos', () => {
 
   it('interactive: videos remain', async () => {
     const screenshots = await handleVideos(pageInteractive, MODE_INTERACTIVE);
-    await pageInteractive.waitFor(timeout);
-    expect(pageInteractive.waitForSelector(VIDEOS)).resolves.not.toThrow();
-    expect(screenshots.length).toBe(0);
+    fileExists(SCREENSHOT_FORMAT);
+    expect(screenshots.length).toBe(2);
   });
 
   it('read-only: videos become screenshots', async () => {
@@ -303,11 +298,8 @@ describe('handleObjects', () => {
 
   it('interactive: object elements become screenshots', async () => {
     const screenshots = await handleObjects(pageInteractive, MODE_INTERACTIVE);
-    await pageInteractive.waitFor(timeout);
-    expect(
-      pageInteractive.waitForSelector(OBJECT_ELEMENTS)
-    ).resolves.not.toThrow();
-    expect(screenshots.length).toBe(0);
+    fileExists(SCREENSHOT_FORMAT);
+    expect(screenshots.length).toBe(2);
   });
 
   it('read-only: object elements become screenshots', async () => {
