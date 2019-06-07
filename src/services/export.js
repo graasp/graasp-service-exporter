@@ -333,8 +333,8 @@ const handleAudios = async (page, mode) => {
     const audios = await page.$x(AUDIOS);
     switch (mode) {
       case MODE_INTERACTIVE:
-        // we let the element as it is
-        break;
+      // we let the element as it is
+      // falls through
       case MODE_READONLY:
       // falls through
       case MODE_STATIC:
@@ -362,8 +362,8 @@ const handleVideos = async (page, mode) => {
     const videos = await page.$$(VIDEOS);
     switch (mode) {
       case MODE_INTERACTIVE:
-        // we let the element as it is
-        break;
+      // we let the element as it is
+      // falls through
       case MODE_READONLY:
       // falls through
       case MODE_STATIC:
@@ -530,10 +530,10 @@ const handleObjects = async (page, mode) => {
     const objects = await page.$$(OBJECT_ELEMENTS);
     switch (mode) {
       case MODE_INTERACTIVE:
-        // @TODO : handle unauthorized response
-        // we need to adjust the height of gadget iframe
-        // await adjustHeightForElements(objects, page);
-        break;
+      // @TODO : handle unauthorized response
+      // we need to adjust the height of gadget iframe
+      // await adjustHeightForElements(objects, page);
+      // falls through
       case MODE_READONLY:
       // falls through
       case MODE_STATIC:
