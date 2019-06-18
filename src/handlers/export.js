@@ -1,6 +1,11 @@
 import ObjectId from 'bson-objectid';
 import Logger from '../utils/Logger';
-import { convertSpaceToFile, upload, isReady } from '../services/export';
+import {
+  convertSpaceToFile,
+  upload,
+  isReady,
+  getFileAsString,
+} from '../services/export';
 import {
   SUPPORTED_FORMATS,
   GRAASP_FILES_HOST,
@@ -8,6 +13,8 @@ import {
   PENDING_STATUS,
   EXPORT_TOPIC,
   CORS_HEADERS,
+  DEFAULT_NETWORK_PRESET,
+  DONE_STATUS,
 } from '../config';
 import { publishSnsTopic } from '../services/sns';
 
@@ -16,8 +23,27 @@ const generateExport = async event => {
     const { id, body, headers, fileId } = JSON.parse(
       event.Records[0].Sns.Message
     );
+
+    const { dryRun, networkPreset = DEFAULT_NETWORK_PRESET } = body;
+
+    // get start date in millis
+    const start = new Date().valueOf();
+
     const file = await convertSpaceToFile(id, body, headers);
-    if (file) {
+
+    // get end date in millis
+    const end = new Date().valueOf();
+
+    // if it is a dry run, then we do not upload an export file, but a json with metadata
+    if (dryRun) {
+      const duration = end - start;
+      Logger.debug(`duration: ${duration}ms`);
+      const report = Buffer.from(`{
+        "duration": ${duration},
+        "networkPreset": "${networkPreset}"
+      }`);
+      await upload(report, fileId);
+    } else if (file) {
       await upload(file, fileId);
     } else {
       Logger.error('no file available for upload');
@@ -68,8 +94,10 @@ const postExport = async ({ pathParameters, headers, body } = {}) => {
     }
     // if request looks good, send location to front end
     // create id
-    const { format = 'pdf' } = bodyJson;
-    const fileId = `${ObjectId().str}.${format}`;
+    const { format = 'pdf', dryRun = false } = bodyJson;
+
+    // we flag a dry run as a json file
+    const fileId = `${ObjectId().str}.${dryRun ? 'json' : format}`;
 
     // publish to sns
     await publishSnsTopic({
@@ -139,6 +167,20 @@ const getExport = async ({ pathParameters } = {}) => {
     const ready = await isReady(id);
 
     if (ready) {
+      // json indicates that this was a dry run
+      if (id.endsWith('json')) {
+        const body = await getFileAsString(id);
+        return {
+          statusCode: 200,
+          headers: {
+            ...CORS_HEADERS,
+          },
+          body: JSON.stringify({
+            ...JSON.parse(body),
+            status: DONE_STATUS,
+          }),
+        };
+      }
       return {
         statusCode: 303,
         headers: {
