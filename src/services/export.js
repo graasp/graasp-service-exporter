@@ -836,7 +836,7 @@ const scrape = async ({
     args: chromium.args,
     defaultViewport: chromium.defaultViewport,
     executablePath: await chromium.executablePath,
-    headless: true,
+    headless: chromium.headless,
   });
 
   try {
