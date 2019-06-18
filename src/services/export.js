@@ -21,8 +21,8 @@ import {
   ELEMENTS_TIMEOUT,
   COVER_DEFAULT_PATH,
   COVER_PATH,
-  MODE_INTERACTIVE,
-  MODE_READONLY,
+  MODE_INTERACTIVE_ONLINE,
+  MODE_INTERACTIVE_OFFLINE,
   MODE_STATIC,
   DEFAULT_LANGUAGE,
   CSS_STYLES_FILE,
@@ -332,10 +332,10 @@ const handleAudios = async (page, mode) => {
     });
     const audios = await page.$x(AUDIOS);
     switch (mode) {
-      case MODE_INTERACTIVE:
+      case MODE_INTERACTIVE_ONLINE:
       // we let the element as it is
       // falls through
-      case MODE_READONLY:
+      case MODE_INTERACTIVE_OFFLINE:
       // falls through
       case MODE_STATIC:
       default:
@@ -361,10 +361,10 @@ const handleVideos = async (page, mode) => {
     });
     const videos = await page.$$(VIDEOS);
     switch (mode) {
-      case MODE_INTERACTIVE:
+      case MODE_INTERACTIVE_ONLINE:
       // we let the element as it is
       // falls through
-      case MODE_READONLY:
+      case MODE_INTERACTIVE_OFFLINE:
       // falls through
       case MODE_STATIC:
       default:
@@ -390,11 +390,11 @@ const handleOfflineLabs = async (page, mode, lang, baseUrl) => {
     });
     const offlineIframes = await page.$$(OFFLINE_READY_IFRAMES);
     switch (mode) {
-      case MODE_INTERACTIVE:
+      case MODE_INTERACTIVE_ONLINE:
       // @TODO: handle phet lab - interactive link does not work
       // height is adjusted in the export view
       // falls through
-      case MODE_READONLY:
+      case MODE_INTERACTIVE_OFFLINE:
         // we need embed content in iframe srcdoc
         await replaceSrcWithSrcdocInIframe(offlineIframes, page, lang, baseUrl);
         // height is adjusted in the export view
@@ -439,11 +439,11 @@ const handleLabs = async (page, mode) => {
     });
     const labs = await page.$$(LAB_ELEMENTS);
     switch (mode) {
-      case MODE_INTERACTIVE:
+      case MODE_INTERACTIVE_ONLINE:
         // we need to adjust the height of iframe
         await adjustHeightForElements(labs, page);
         break;
-      case MODE_READONLY:
+      case MODE_INTERACTIVE_OFFLINE:
       // falls through
       case MODE_STATIC:
       default:
@@ -469,11 +469,11 @@ const handleApps = async (page, mode) => {
     });
     const apps = await page.$$(APP_ELEMENTS);
     switch (mode) {
-      case MODE_INTERACTIVE:
+      case MODE_INTERACTIVE_ONLINE:
         // we need to adjust the height of iframe
         await adjustHeightForElements(apps, page);
         break;
-      case MODE_READONLY:
+      case MODE_INTERACTIVE_OFFLINE:
       // falls through
       case MODE_STATIC:
       default:
@@ -499,11 +499,11 @@ const handleGadgets = async (page, mode) => {
     });
     const gadgets = await page.$$(GADGETS);
     switch (mode) {
-      case MODE_INTERACTIVE:
+      case MODE_INTERACTIVE_ONLINE:
         // we need to adjust the height of gadget iframe
         await adjustHeightForElements(gadgets, page);
         break;
-      case MODE_READONLY:
+      case MODE_INTERACTIVE_OFFLINE:
       // falls through
       case MODE_STATIC:
       default:
@@ -529,12 +529,12 @@ const handleObjects = async (page, mode) => {
     });
     const objects = await page.$$(OBJECT_ELEMENTS);
     switch (mode) {
-      case MODE_INTERACTIVE:
+      case MODE_INTERACTIVE_ONLINE:
       // @TODO : handle unauthorized response
       // we need to adjust the height of gadget iframe
       // await adjustHeightForElements(objects, page);
       // falls through
-      case MODE_READONLY:
+      case MODE_INTERACTIVE_OFFLINE:
       // falls through
       case MODE_STATIC:
       default:
@@ -560,11 +560,11 @@ const handleEmbedded = async (page, mode) => {
     });
     const embeds = await page.$$(EMBEDDED_ELEMENTS);
     switch (mode) {
-      case MODE_INTERACTIVE:
+      case MODE_INTERACTIVE_ONLINE:
         // we need to adjust the height of embedded iframe
         await adjustHeightForElements(embeds, page);
         break;
-      case MODE_READONLY:
+      case MODE_INTERACTIVE_OFFLINE:
       // falls through
       case MODE_STATIC:
       default:
@@ -590,10 +590,10 @@ const handleUnsupported = async (page, mode) => {
     });
     const unsupported = await page.$$(UNSUPPORTED_ELEMENTS);
     switch (mode) {
-      case MODE_INTERACTIVE:
+      case MODE_INTERACTIVE_ONLINE:
       // @TODO replace with a link ?
       // falls through
-      case MODE_READONLY:
+      case MODE_INTERACTIVE_OFFLINE:
       // falls through
       case MODE_STATIC:
       default:
@@ -624,7 +624,7 @@ const retrievePhasesContent = async (page, mode) => {
       PHASE_DESCRIPTIONS
     );
 
-    if (mode === MODE_READONLY || mode === MODE_INTERACTIVE) {
+    if (mode === MODE_INTERACTIVE_OFFLINE || mode === MODE_INTERACTIVE_ONLINE) {
       // decode & character because it was previously encoded when set to srcdoc attribute
       body = body.map(phase => ({
         title: phase.title,

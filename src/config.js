@@ -57,8 +57,8 @@ export const ELEMENTS_TIMEOUT = 3000;
 export const DEFAULT_LANGUAGE = 'en';
 
 export const MODE_STATIC = 'static';
-export const MODE_READONLY = 'read-only';
-export const MODE_INTERACTIVE = 'interactive';
+export const MODE_INTERACTIVE_OFFLINE = 'interactive_offline';
+export const MODE_INTERACTIVE_ONLINE = 'interactive_online';
 
 export const COVER_PATH = `${TMP_FOLDER}/cover.jpg`;
 export const COVER_DEFAULT_PATH =
