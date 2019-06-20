@@ -30,6 +30,8 @@ import {
   SCREENSHOT_FORMAT,
   NETWORK_PRESETS,
   DEFAULT_NETWORK_PRESET,
+  GRAASP,
+  VIEWER_SUBDOMAIN,
 } from '../config';
 import Logger from '../utils/Logger';
 import isLambda from '../utils/isLambda';
@@ -973,7 +975,13 @@ const convertSpaceToFile = async (id, body, headers) => {
   const languageCode = lang.split('_')[0];
 
   // build url from query parameters
-  const { origin = GRAASP_HOST } = headers;
+  let { origin = GRAASP_HOST } = headers;
+  if (origin.match(GRAASP)) {
+    const split = GRAASP.split('://');
+    const protocol = split[0];
+    const host = split[1];
+    origin = `${protocol}://${VIEWER_SUBDOMAIN}.${host}`;
+  }
   const url = `${origin}/${languageCode}/pages/${id}/export`;
   const loginTypeUrl = `${AUTH_TYPE_HOST}/${id}`;
 
