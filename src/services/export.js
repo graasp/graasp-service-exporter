@@ -28,6 +28,8 @@ import {
   CSS_STYLES_FILE,
   VIEWPORT_WIDTH,
   SCREENSHOT_FORMAT,
+  NETWORK_PRESETS,
+  DEFAULT_NETWORK_PRESET,
 } from '../config';
 import Logger from '../utils/Logger';
 import isLambda from '../utils/isLambda';
@@ -827,17 +829,32 @@ const scrape = async ({
   password,
   mode,
   lang,
+  dryRun,
+  networkPreset,
 }) => {
   Logger.debug('instantiating puppeteer');
   const browser = await chromium.puppeteer.launch({
     args: chromium.args,
     defaultViewport: chromium.defaultViewport,
     executablePath: await chromium.executablePath,
-    headless: chromium.headless,
+    // always run headless
+    headless: true,
   });
 
   try {
     const page = await browser.newPage();
+
+    // dry run allows throttling
+    if (dryRun) {
+      // Connect to Chrome DevTools
+      const client = await page.target().createCDPSession();
+
+      // Set throttling property
+      await client.send(
+        'Network.emulateNetworkConditions',
+        NETWORK_PRESETS[networkPreset]
+      );
+    }
 
     // todo: factor out viewport dims
     await page.setViewport({
@@ -942,17 +959,6 @@ const scrape = async ({
 const convertSpaceToFile = async (id, body, headers) => {
   Logger.debug('converting space to file');
 
-  // sign in automatically if needed
-  let token = headers.authorization;
-  if (token && token.indexOf('Bearer ') === 0) {
-    // just include the token string and not the bearer prefix
-    token = token.substring(7);
-  }
-  const params = body;
-  if (token) {
-    params.authorization = token;
-  }
-
   // return in pdf format by default
   const {
     format = 'pdf',
@@ -960,6 +966,8 @@ const convertSpaceToFile = async (id, body, headers) => {
     username,
     password,
     mode = MODE_STATIC,
+    dryRun = false,
+    networkPreset = DEFAULT_NETWORK_PRESET,
   } = body;
 
   const languageCode = lang.split('_')[0];
@@ -977,6 +985,8 @@ const convertSpaceToFile = async (id, body, headers) => {
     password,
     mode,
     lang,
+    dryRun,
+    networkPreset,
   });
   if (!page) {
     const prettyUrl = url.split('?')[0];
@@ -1021,9 +1031,21 @@ const isReady = fileId =>
     });
   });
 
+const getFileAsString = async fileId => {
+  const params = {
+    Bucket: S3_BUCKET,
+    Key: fileId,
+  };
+  const data = await s3.getObject(params).promise();
+  const objectData = data.Body.toString('utf-8');
+  Logger.info(objectData);
+  return objectData;
+};
+
 export {
   convertSpaceToFile,
   upload,
+  getFileAsString,
   isReady,
   adjustHeightForElements,
   getDownloadUrl,
