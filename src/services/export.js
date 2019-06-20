@@ -977,7 +977,7 @@ const convertSpaceToFile = async (id, body, headers) => {
   // build url from query parameters
   let { origin = GRAASP_HOST } = headers;
   if (origin.match(GRAASP)) {
-    const split = GRAASP.split('://');
+    const split = origin.split('://');
     const protocol = split[0];
     const host = split[1];
     origin = `${protocol}://${VIEWER_SUBDOMAIN}.${host}`;
