@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+# [0.4.0](https://github.com/graasp/graasp-service-exporter/compare/v0.3.3...v0.4.0) (2019-06-20)
+
+### Features
+
+- allow dry-run flag ([32e237d](https://github.com/graasp/graasp-service-exporter/commit/32e237d)), closes [#61](https://github.com/graasp/graasp-service-exporter/issues/61)
+
 ## [0.3.3](https://github.com/graasp/graasp-service-exporter/compare/v0.3.2...v0.3.3) (2019-06-07)
 
 ### Bug Fixes
