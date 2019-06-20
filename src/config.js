@@ -46,7 +46,7 @@ export const PENDING_STATUS = 'pending';
 export const DONE_STATUS = 'done';
 export const EXPORT_TOPIC = `export-${STAGE}`;
 
-export const GRAASP_VIEWER = /https?:\/\/viewer\.(dev\.)?graasp\.eu/g;
+export const GRAASP_VIEWER = /https?:\/\/(viewer\.)?(dev\.)?graasp\.eu/g;
 export const GRAASP_CLOUD = /https?:\/\/cloud\.(dev\.)?graasp\.eu/g;
 
 export const AUTH_TYPE_ANONYMOUS = 'local-contextual-anonymous';
