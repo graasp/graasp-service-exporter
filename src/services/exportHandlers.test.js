@@ -4,8 +4,8 @@ import glob from 'glob';
 import path from 'path';
 import {
   GRAASP_HOST,
-  MODE_INTERACTIVE,
-  MODE_READONLY,
+  MODE_INTERACTIVE_ONLINE,
+  MODE_INTERACTIVE_OFFLINE,
   MODE_STATIC,
   DEFAULT_LANGUAGE,
   TMP_FOLDER,
@@ -65,13 +65,16 @@ const initPuppeteerWithMode = async () => {
     timeout: 0,
   });
   pageReadOnly = await browser.newPage();
-  await pageReadOnly.goto(`file://${__dirname}/exportReadOnly.test.html`, {
-    waitUntil: 'domcontentloaded',
-    timeout: 0,
-  });
+  await pageReadOnly.goto(
+    `file://${__dirname}/exportInteractiveOffline.test.html`,
+    {
+      waitUntil: 'domcontentloaded',
+      timeout: 0,
+    }
+  );
   pageInteractive = await browser.newPage();
   await pageInteractive.goto(
-    `file://${__dirname}/exportInteractive.test.html`,
+    `file://${__dirname}/exportInteractiveOnline.test.html`,
     { waitUntil: 'domcontentloaded', timeout: 0 }
   );
 };
@@ -131,8 +134,11 @@ describe('handleApps', () => {
     removeAllImages();
   });
 
-  it('interactive: apps remain', async () => {
-    const screenshots = await handleApps(pageInteractive, MODE_INTERACTIVE);
+  it('interactive online: apps remain', async () => {
+    const screenshots = await handleApps(
+      pageInteractive,
+      MODE_INTERACTIVE_ONLINE
+    );
     await pageInteractive.waitFor(timeout);
     expect(
       pageInteractive.waitForSelector(APP_ELEMENTS)
@@ -140,8 +146,11 @@ describe('handleApps', () => {
     expect(screenshots.length).toBe(0);
   });
 
-  it('read-only: apps become screenshots', async () => {
-    const screenshots = await handleApps(pageReadOnly, MODE_READONLY);
+  it('interactive offline: apps become screenshots', async () => {
+    const screenshots = await handleApps(
+      pageReadOnly,
+      MODE_INTERACTIVE_OFFLINE
+    );
     fileExists(SCREENSHOT_FORMAT);
     expect(screenshots.length).toBe(2);
   });
@@ -166,14 +175,20 @@ describe('handleAudios', () => {
     removeAllImages();
   });
 
-  it('interactive: audios remain', async () => {
-    const screenshots = await handleAudios(pageInteractive, MODE_INTERACTIVE);
+  it('interactive online: audios remain', async () => {
+    const screenshots = await handleAudios(
+      pageInteractive,
+      MODE_INTERACTIVE_ONLINE
+    );
     fileExists(SCREENSHOT_FORMAT);
     expect(screenshots.length).toBe(2);
   });
 
-  it('read-only: audios become screenshots', async () => {
-    const screenshots = await handleAudios(pageReadOnly, MODE_READONLY);
+  it('interactive offline: audios become screenshots', async () => {
+    const screenshots = await handleAudios(
+      pageReadOnly,
+      MODE_INTERACTIVE_OFFLINE
+    );
     fileExists(SCREENSHOT_FORMAT);
     expect(screenshots.length).toBe(2);
   });
@@ -197,14 +212,20 @@ describe('handleVideos', () => {
     removeAllImages();
   });
 
-  it('interactive: videos remain', async () => {
-    const screenshots = await handleVideos(pageInteractive, MODE_INTERACTIVE);
+  it('interactive online: videos remain', async () => {
+    const screenshots = await handleVideos(
+      pageInteractive,
+      MODE_INTERACTIVE_ONLINE
+    );
     fileExists(SCREENSHOT_FORMAT);
     expect(screenshots.length).toBe(2);
   });
 
-  it('read-only: videos become screenshots', async () => {
-    const screenshots = await handleVideos(pageReadOnly, MODE_READONLY);
+  it('interactive offline: videos become screenshots', async () => {
+    const screenshots = await handleVideos(
+      pageReadOnly,
+      MODE_INTERACTIVE_OFFLINE
+    );
     fileExists(SCREENSHOT_FORMAT);
     expect(screenshots.length).toBe(2);
   });
@@ -228,8 +249,11 @@ describe('handleEmbedded', () => {
     removeAllImages();
   });
 
-  it('interactive: embedded elements remain', async () => {
-    const screenshots = await handleEmbedded(pageInteractive, MODE_INTERACTIVE);
+  it('interactive online: embedded elements remain', async () => {
+    const screenshots = await handleEmbedded(
+      pageInteractive,
+      MODE_INTERACTIVE_ONLINE
+    );
     await pageInteractive.waitFor(timeout);
     expect(
       pageInteractive.waitForSelector(EMBEDDED_ELEMENTS)
@@ -237,8 +261,11 @@ describe('handleEmbedded', () => {
     expect(screenshots.length).toBe(0);
   });
 
-  it('read-only: embedded elements become screenshots', async () => {
-    const screenshots = await handleEmbedded(pageReadOnly, MODE_READONLY);
+  it('interactive offline: embedded elements become screenshots', async () => {
+    const screenshots = await handleEmbedded(
+      pageReadOnly,
+      MODE_INTERACTIVE_OFFLINE
+    );
     fileExists(SCREENSHOT_FORMAT);
     expect(screenshots.length).toBe(2);
   });
@@ -262,8 +289,11 @@ describe('handleLabs', () => {
     removeAllImages();
   });
 
-  it('interactive: labs remain', async () => {
-    const screenshots = await handleLabs(pageInteractive, MODE_INTERACTIVE);
+  it('interactive online: labs remain', async () => {
+    const screenshots = await handleLabs(
+      pageInteractive,
+      MODE_INTERACTIVE_ONLINE
+    );
     await pageInteractive.waitFor(timeout);
     expect(
       pageInteractive.waitForSelector(LAB_ELEMENTS)
@@ -271,8 +301,11 @@ describe('handleLabs', () => {
     expect(screenshots.length).toBe(0);
   });
 
-  it('read-only: labs become screenshots', async () => {
-    const screenshots = await handleLabs(pageReadOnly, MODE_READONLY);
+  it('interactive offline: labs become screenshots', async () => {
+    const screenshots = await handleLabs(
+      pageReadOnly,
+      MODE_INTERACTIVE_OFFLINE
+    );
     fileExists(SCREENSHOT_FORMAT);
     expect(screenshots.length).toBe(2);
   });
@@ -296,14 +329,20 @@ describe('handleObjects', () => {
     removeAllImages();
   });
 
-  it('interactive: object elements become screenshots', async () => {
-    const screenshots = await handleObjects(pageInteractive, MODE_INTERACTIVE);
+  it('interactive online: object elements become screenshots', async () => {
+    const screenshots = await handleObjects(
+      pageInteractive,
+      MODE_INTERACTIVE_ONLINE
+    );
     fileExists(SCREENSHOT_FORMAT);
     expect(screenshots.length).toBe(2);
   });
 
-  it('read-only: object elements become screenshots', async () => {
-    const screenshots = await handleObjects(pageReadOnly, MODE_READONLY);
+  it('interactive offline: object elements become screenshots', async () => {
+    const screenshots = await handleObjects(
+      pageReadOnly,
+      MODE_INTERACTIVE_OFFLINE
+    );
     fileExists(SCREENSHOT_FORMAT);
     expect(screenshots.length).toBe(2);
   });
@@ -330,20 +369,20 @@ describe('handleOfflineLabs', () => {
     removeAllImages();
   });
 
-  it('interactive: offline labs become iframe with srcdoc set', async () => {
+  it('interactive online: offline labs become iframe with srcdoc set', async () => {
     const screenshots = await handleOfflineLabs(
       pageInteractive,
-      MODE_INTERACTIVE,
+      MODE_INTERACTIVE_ONLINE,
       lang,
       baseUrl
     );
     expect(screenshots.length).toBe(0);
   });
 
-  it('read-only: offline labs become iframe with srcdoc set', async () => {
+  it('interactive offline: offline labs become iframe with srcdoc set', async () => {
     const screenshots = await handleOfflineLabs(
       pageReadOnly,
-      MODE_READONLY,
+      MODE_INTERACTIVE_OFFLINE,
       lang,
       baseUrl
     );
@@ -374,17 +413,20 @@ describe('handleUnsupported', () => {
     removeAllImages();
   });
 
-  it('interactive: unsupported elements become screenshots', async () => {
+  it('interactive online: unsupported elements become screenshots', async () => {
     const screenshots = await handleUnsupported(
       pageInteractive,
-      MODE_INTERACTIVE
+      MODE_INTERACTIVE_ONLINE
     );
     fileExists(SCREENSHOT_FORMAT);
     expect(screenshots.length).toBeGreaterThan(0);
   });
 
-  it('read-only: unsupported elements become screenshots', async () => {
-    const screenshots = await handleUnsupported(pageReadOnly, MODE_READONLY);
+  it('interactive offline: unsupported elements become screenshots', async () => {
+    const screenshots = await handleUnsupported(
+      pageReadOnly,
+      MODE_INTERACTIVE_OFFLINE
+    );
     fileExists(SCREENSHOT_FORMAT);
     expect(screenshots.length).toBe(2);
   });
@@ -408,15 +450,21 @@ describe('handleGadgets', () => {
     removeAllImages();
   });
 
-  it('interactive: gadgets remain', async () => {
-    const screenshots = await handleGadgets(pageInteractive, MODE_INTERACTIVE);
+  it('interactive online: gadgets remain', async () => {
+    const screenshots = await handleGadgets(
+      pageInteractive,
+      MODE_INTERACTIVE_ONLINE
+    );
     await pageInteractive.waitFor(timeout);
     expect(pageInteractive.waitForSelector(GADGETS)).resolves.not.toThrow();
     expect(screenshots.length).toBe(0);
   });
 
-  it('read-only: gadgets become screenshots', async () => {
-    const screenshots = await handleGadgets(pageReadOnly, MODE_READONLY);
+  it('interactive offline: gadgets become screenshots', async () => {
+    const screenshots = await handleGadgets(
+      pageReadOnly,
+      MODE_INTERACTIVE_OFFLINE
+    );
     fileExists(SCREENSHOT_FORMAT);
     expect(screenshots.length).toBe(2);
   });
