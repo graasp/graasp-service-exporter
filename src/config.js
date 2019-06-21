@@ -59,7 +59,8 @@ export const AUTH_TYPE_PASSWORD = 'local-contextual-username-password';
 // the files page that download the generated file times out at 3 minutes
 // (180000ms), so ensure that this timeout is less than or equal than that one
 export const TIMEOUT = 180000;
-export const ELEMENTS_TIMEOUT = 30000;
+export const ELEMENTS_TIMEOUT = 5000;
+export const LOGIN_TIMEOUT = 30000;
 
 export const DEFAULT_LANGUAGE = 'en';
 

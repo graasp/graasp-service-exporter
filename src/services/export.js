@@ -32,6 +32,7 @@ import {
   DEFAULT_NETWORK_PRESET,
   GRAASP,
   VIEWER_SUBDOMAIN,
+  LOGIN_TIMEOUT,
 } from '../config';
 import Logger from '../utils/Logger';
 import isLambda from '../utils/isLambda';
@@ -879,7 +880,7 @@ const scrape = async ({
     // login routine depends on the origin
     if (url.match(GRAASP_VIEWER)) {
       await page.waitForSelector(VIEWER_USERNAME, {
-        timeout: ELEMENTS_TIMEOUT,
+        timeout: LOGIN_TIMEOUT,
       });
       await page.type(VIEWER_USERNAME, username);
       await page.type(VIEWER_PASSWORD, password);
