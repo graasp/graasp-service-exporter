@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [0.4.2](https://github.com/graasp/graasp-service-exporter/compare/v0.4.1...v0.4.2) (2019-06-21)
+
+### Bug Fixes
+
+- use separate timeout for elements and login ([dc768a5](https://github.com/graasp/graasp-service-exporter/commit/dc768a5))
+
 ## [0.4.1](https://github.com/graasp/graasp-service-exporter/compare/v0.4.0...v0.4.1) (2019-06-21)
 
 ### Bug Fixes
