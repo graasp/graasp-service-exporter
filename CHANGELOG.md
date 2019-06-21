@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [0.4.1](https://github.com/graasp/graasp-service-exporter/compare/v0.4.0...v0.4.1) (2019-06-21)
+
+### Bug Fixes
+
+- allow (dev\.)?graasp\.eu as a referrer ([f840617](https://github.com/graasp/graasp-service-exporter/commit/f840617))
+- allow (dev\.)?graasp\.eu as an origin ([51da43b](https://github.com/graasp/graasp-service-exporter/commit/51da43b))
+- fix bug splitting regex ([22fbdbb](https://github.com/graasp/graasp-service-exporter/commit/22fbdbb))
+- set elements timeout to thirty seconds ([c79de6a](https://github.com/graasp/graasp-service-exporter/commit/c79de6a))
+
 # [0.4.0](https://github.com/graasp/graasp-service-exporter/compare/v0.3.3...v0.4.0) (2019-06-20)
 
 ### Features
