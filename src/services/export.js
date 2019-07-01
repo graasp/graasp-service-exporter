@@ -33,6 +33,7 @@ import {
   GRAASP,
   VIEWER_SUBDOMAIN,
   LOGIN_TIMEOUT,
+  FRAMES_TIMEOUT,
 } from '../config';
 import Logger from '../utils/Logger';
 import isLambda from '../utils/isLambda';
@@ -940,8 +941,11 @@ const scrape = async ({
       throw Error(`Unexpected origin: ${url}`);
     }
 
-    // wait three more seconds just in case, mainly to wait for iframes to load
-    await page.waitFor(3000);
+    // wait three more seconds just in case, mainly to wait for iframes and apps to load
+    const nbFrames = page.mainFrame().childFrames().length;
+    const waitingTime = 3000 + nbFrames * FRAMES_TIMEOUT;
+    Logger.debug(`wait for ${waitingTime}ms`);
+    await page.waitFor(waitingTime);
 
     // reset the viewport for screenshots visiblity
     const body = await page.$(ROOT);
