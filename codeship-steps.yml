@@ -11,10 +11,11 @@
       service: app-test
       command: yarn test
 
-# development:
-# runs on develop branch
+# development
+# -----------
+# runs on master branch
 - type: serial
-  tag: develop
+  tag: master
   name: dev
   steps:
     - name: deploy-dev
@@ -27,7 +28,7 @@
 - type: manual
   # matches v<major>.<minor>.<patch>[-<meta>] version format
   tag: ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(\-[0-9A-Za-z]*)?$
-  name: tag
+  name: prod
   steps:
     - name: deploy-prod
       service: app-prod
