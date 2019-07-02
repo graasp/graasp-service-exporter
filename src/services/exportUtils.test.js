@@ -155,9 +155,7 @@ describe('retrieveBaseUrl', () => {
   });
 
   const evaluateRetrieveBaseUrl = async (selector, returnValue) => {
-    const base = await page.$(selector);
-
-    const href = await retrieveBaseUrl(base, HOST);
+    const href = await retrieveBaseUrl(page, HOST, selector);
     expect(href).toMatch(returnValue);
   };
 
