@@ -20,7 +20,7 @@ import {
   TIMEOUT,
   ELEMENTS_TIMEOUT,
   COVER_DEFAULT_PATH,
-  COVER_PATH,
+  PUBLISHER_DEFAULT,
   MODE_INTERACTIVE_ONLINE,
   MODE_INTERACTIVE_OFFLINE,
   MODE_STATIC,
@@ -106,36 +106,47 @@ const instantiatePuppeteer = async () => {
   return browser;
 };
 
+const generateCover = async ({
+  background,
+  title,
+  author,
+  publisher = PUBLISHER_DEFAULT,
+  username = 'Anonymous',
+}) => {
+  Logger.debug(`Generating cover image`);
+
+  const path = `${TMP_FOLDER}/cover_${generateRandomString()}.jpg`;
+
+  // @TODO refactor cover data (date, student name)
+  const metadata = {
+    date: new Date(),
+    username,
+    publisher,
+  };
+  // we wait for the cover image because it loads asynchronously the bakground image file
+  await coverImage(background, title, author, metadata, path);
+  return path;
+};
+
 const generateEpub = async ({
   title = 'Untitled',
   author = 'Anonymous',
-  username = 'Anonymous',
-  chapters = [],
-  background = COVER_DEFAULT_PATH,
+  sections = [],
   screenshots = [],
+  covers = [],
+  coverPath,
 }) => {
   Logger.debug('generating epub');
   // main options
   const main = {
     title,
     author,
-    publisher: 'Graasp',
-    cover: COVER_PATH,
+    publisher: PUBLISHER_DEFAULT,
+    cover: coverPath,
   };
-
-  // generate cover image
-  // @TODO refactor cover data (date, student name)
-  Logger.debug('Generating cover image');
-  const metadata = {
-    date: new Date(),
-    username,
-    publisher: main.publisher,
-  };
-  // we wait for the cover image because it loads asynchronously the bakground image file
-  await coverImage(background, title, author, metadata);
 
   // make sure that all content sections have data
-  const content = chapters.filter(chapter => chapter.title && chapter.data);
+  const content = sections.filter(section => section.title && section.content);
 
   // css styles
   const styles = fs.readFileSync(CSS_STYLES_FILE);
@@ -176,11 +187,13 @@ const generateEpub = async ({
               }
             });
           });
-          Logger.debug(`info: deleting temporary cover ${COVER_PATH}`);
-          rimraf(COVER_PATH, error => {
-            if (error) {
-              console.error(error);
-            }
+          covers.forEach(path => {
+            Logger.debug(`info: deleting temporary covers ${path}`);
+            rimraf(path, error => {
+              if (error) {
+                console.error(error);
+              }
+            });
           });
           resolve(rvalue);
         });
@@ -723,6 +736,16 @@ const saveEpub = async (page, mode, lang, username) => {
     baseUrl
   );
 
+  // generate cover
+  const coverPath = await generateCover({
+    background,
+    title,
+    author,
+    publisher: PUBLISHER_DEFAULT,
+    username,
+  });
+  const coverContent = { title: '', data: `<img src="${coverPath}"/>` };
+
   // epub-gen handle images by himself
   // screenshot replacements have to come after image src changes
 
@@ -785,7 +808,11 @@ const saveEpub = async (page, mode, lang, username) => {
   }
 
   // concatenate introduction and body
-  const chapters = [introduction, ...body, tools];
+  const content = [introduction, ...body, tools].filter(
+    chapter => chapter.data
+  );
+
+  const sections = [{ title, author, content, coverContent }];
 
   const screenshots = [
     ...appScreenshots,
@@ -802,10 +829,10 @@ const saveEpub = async (page, mode, lang, username) => {
   return {
     title,
     author,
-    username,
-    chapters,
+    sections,
     background,
     screenshots,
+    coverPath,
   };
 };
 
@@ -1022,7 +1049,18 @@ const handleMainSpace = async (
     networkPreset
   );
   const baseUrl = await retrieveBaseUrl(mainPage, GRAASP_HOST);
-  return retrieveMetadata(mainPage, baseUrl);
+  const metadata = await retrieveMetadata(mainPage, baseUrl);
+  const { background, title, author } = metadata;
+
+  // generate main cover
+  const coverPath = await generateCover({
+    background,
+    title,
+    author,
+    publisher: PUBLISHER_DEFAULT,
+    username,
+  });
+  return { coverPath, ...metadata };
 };
 
 const convertSpaceToFile = async (id, body, headers) => {
@@ -1089,46 +1127,34 @@ const convertSpaceToFile = async (id, body, headers) => {
       )
     );
 
-    const {
-      title,
-      author,
-      chapters,
-      background,
-      screenshots,
-    } = await Promise.all([mainSpacePromise, ...subspacesPromises]).then(
+    params = await Promise.all([mainSpacePromise, ...subspacesPromises]).then(
       spacesParams => {
         const mainPageMetadata = spacesParams.shift();
 
         // merge spaces' content
-        // for code clarity, flatMap would be feasible
-        // concat title and chapters for each space
-        let allChapters = spacesParams.map(param => [
-          { title: param.title, data: '' },
-          ...param.chapters,
-        ]);
-        allChapters = Array.prototype.concat.apply([], allChapters);
+        let allSections = spacesParams.map(param => param.sections);
+        allSections = Array.prototype.concat.apply([], allSections);
+
+        const allCovers = spacesParams
+          .map(param => param.coverPath)
+          .filter(cover => cover != null);
 
         let allScreenshots = spacesParams.map(param => param.screenshots);
         allScreenshots = Array.prototype.concat.apply([], allScreenshots);
+        // @TODO add main space description/introduction in backcover
 
         return {
           title: mainPageMetadata.title,
           author: mainPageMetadata.author,
-          chapters: [mainPageMetadata.introduction, ...allChapters],
+          username,
+          sections: allSections,
           background: mainPageMetadata.background,
           screenshots: allScreenshots,
+          covers: allCovers,
+          coverPath: mainPageMetadata.coverPath,
         };
       }
     );
-
-    params = {
-      title,
-      author,
-      username,
-      chapters,
-      background,
-      screenshots,
-    };
   } else {
     // single space
     Logger.debug('scraping single space');
