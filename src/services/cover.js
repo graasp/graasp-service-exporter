@@ -2,7 +2,7 @@ import { createCanvas, loadImage } from 'canvas';
 import fs from 'fs';
 import dateFormat from 'dateformat';
 import Logger from '../utils/Logger';
-import { BACKGROUND_COLOR, FONT, FONT_COLOR, COVER_PATH } from '../config';
+import { BACKGROUND_COLOR, FONT, FONT_COLOR } from '../config';
 
 const canvas = createCanvas(600, 800);
 const context = canvas.getContext('2d');
@@ -58,7 +58,7 @@ const writeMetadata = (heightPadding, metadata) => {
   });
 };
 
-const coverImage = async (background, title, author, metadata) => {
+const coverImage = async (background, title, author, metadata, path) => {
   // background
   context.fillStyle = BACKGROUND_COLOR;
   context.fillRect(0, 0, canvas.width, canvas.height);
@@ -119,7 +119,7 @@ const coverImage = async (background, title, author, metadata) => {
       imageHeight // size from position
     );
     const buf = canvas.toBuffer();
-    fs.writeFileSync(COVER_PATH, buf);
+    fs.writeFileSync(path, buf);
     Logger.debug('Cover image saved');
   });
 };
