@@ -96,6 +96,7 @@ const exportLink = (origin, languageCode, id) => {
 const instantiatePuppeteer = async () => {
   Logger.debug('instantiating puppeteer');
   chromium.args.push('--unlimited-storage');
+  chromium.args.push('--force-gpu-mem-available-mb')
   const browser = await chromium.puppeteer.launch({
     args: chromium.args,
     defaultViewport: chromium.defaultViewport,
@@ -1003,12 +1004,11 @@ const puppeteerLogin = async (
     height: maxHeight,
   });
 
-  // wait three more seconds just in case, mainly to wait for iframes and apps to load
-  const nbFrames = page.mainFrame().childFrames().length;
-  const waitingTime = 3000 + nbFrames * FRAMES_TIMEOUT;
-  Logger.debug(`wait for ${waitingTime}ms`);
-  await page.waitFor(waitingTime);
-
+    // wait three more seconds just in case, mainly to wait for iframes and apps to load
+    const nbFrames = page.mainFrame().childFrames().length;
+    const waitingTime = 3000 + nbFrames * FRAMES_TIMEOUT;
+    Logger.debug(`waiting for ${waitingTime}ms`);
+    await page.waitFor(waitingTime);
   return page;
 };
 
@@ -1150,7 +1150,9 @@ const convertSpaceToFile = async (id, body, headers) => {
         let allSections = spacesParams.map(param => param.sections);
         allSections = Array.prototype.concat.apply([], allSections);
 
-        const allCovers = spacesParams.map(param => param.coverPath);
+        const allCovers = spacesParams
+          .map(param => param.coverPath)
+          .filter(cover => cover != null);
 
         let allScreenshots = spacesParams.map(param => param.screenshots);
         allScreenshots = Array.prototype.concat.apply([], allScreenshots);

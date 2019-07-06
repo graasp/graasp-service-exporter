@@ -43,7 +43,7 @@
     "domain:delete:prod": "serverless delete_domain --stage prod",
     "deploy:dev": "serverless deploy --stage dev",
     "deploy:prod": "serverless deploy --stage prod",
-    "prettier": "prettier --check 'src/**/*.js'",
+    "prettier": "prettier --fix 'src/**/*.js'",
     "prettier:check": "prettier --check 'src/**/*.js'",
     "release": "git add CHANGELOG.md && standard-version -a",
     "hooks:uninstall": "node node_modules/husky/husky.js uninstall",
