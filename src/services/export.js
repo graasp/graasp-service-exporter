@@ -112,6 +112,7 @@ const generateCover = async ({
   author,
   publisher = PUBLISHER_DEFAULT,
   username = 'Anonymous',
+  sectionNumber = null,
 }) => {
   Logger.debug(`Generating cover image`);
 
@@ -124,7 +125,7 @@ const generateCover = async ({
     publisher,
   };
   // we wait for the cover image because it loads asynchronously the bakground image file
-  await coverImage(background, title, author, metadata, path);
+  await coverImage(background, title, author, sectionNumber, metadata, path);
   return path;
 };
 
@@ -726,7 +727,7 @@ const retrieveMetadata = async (page, baseUrl) => {
   return { title, author, background, introduction };
 };
 
-const saveEpub = async (page, mode, lang, username) => {
+const saveEpub = async (page, mode, lang, username, sectionNumber = null) => {
   Logger.debug(`saving epub in ${mode} mode`);
 
   // retrieve base url, and prepare it with necessary
@@ -745,6 +746,7 @@ const saveEpub = async (page, mode, lang, username) => {
     author,
     publisher: PUBLISHER_DEFAULT,
     username,
+    sectionNumber,
   });
   const coverContent = { title: '', data: `<img src="${coverPath}"/>` };
 
@@ -1011,6 +1013,7 @@ const handleSubspace = async (
   password,
   mode,
   lang,
+  sectionNumber,
   dryRun,
   networkPreset
 ) => {
@@ -1026,7 +1029,7 @@ const handleSubspace = async (
     dryRun,
     networkPreset
   );
-  const params = await saveEpub(page, mode, lang, username);
+  const params = await saveEpub(page, mode, lang, username, sectionNumber);
 
   await browser.close();
   return params;
@@ -1078,7 +1081,7 @@ const convertSpaceToFile = async (id, body, headers) => {
     username,
     password,
     mode = MODE_STATIC,
-    spaceIds = [],
+    spaces = [],
     dryRun = false,
     networkPreset = DEFAULT_NETWORK_PRESET,
   } = body;
@@ -1102,11 +1105,11 @@ const convertSpaceToFile = async (id, body, headers) => {
   let params = [];
 
   // multiple space scraping for epub format only
-  if (spaceIds.length && format === 'epub') {
+  if (spaces.length && format === 'epub') {
     Logger.debug('scraping multiple spaces');
 
-    const spaceUrls = spaceIds.map(spaceId =>
-      exportLink(origin, languageCode, spaceId)
+    const spaceUrls = spaces.map(space =>
+      exportLink(origin, languageCode, space.id)
     );
 
     // create promises for the main space and the subspaces
@@ -1119,7 +1122,7 @@ const convertSpaceToFile = async (id, body, headers) => {
       dryRun,
       networkPreset
     );
-    const subspacesPromises = spaceUrls.map(async spaceUrl =>
+    const subspacesPromises = spaceUrls.map(async (spaceUrl, index) =>
       handleSubspace(
         spaceUrl,
         loginTypeUrl,
@@ -1127,6 +1130,7 @@ const convertSpaceToFile = async (id, body, headers) => {
         password,
         mode,
         lang,
+        index + 1,
         dryRun,
         networkPreset
       )
@@ -1140,9 +1144,7 @@ const convertSpaceToFile = async (id, body, headers) => {
         let allSections = spacesParams.map(param => param.sections);
         allSections = Array.prototype.concat.apply([], allSections);
 
-        const allCovers = spacesParams
-          .map(param => param.coverPath)
-          .filter(cover => cover != null);
+        const allCovers = spacesParams.map(param => param.coverPath);
 
         let allScreenshots = spacesParams.map(param => param.screenshots);
         allScreenshots = Array.prototype.concat.apply([], allScreenshots);

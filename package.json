@@ -66,6 +66,7 @@
     "request": "2.88.0",
     "request-promise-native": "1.0.7",
     "rimraf": "2.6.3",
+    "roman-numerals": "0.3.2",
     "serverless-sentry-lib": "1.1.2",
     "superagent": "5.0.5",
     "winston": "3.2.1"
