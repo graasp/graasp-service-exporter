@@ -20,7 +20,7 @@ import {
   TIMEOUT,
   ELEMENTS_TIMEOUT,
   COVER_DEFAULT_PATH,
-  COVER_PATH,
+  PUBLISHER_DEFAULT,
   MODE_INTERACTIVE_ONLINE,
   MODE_INTERACTIVE_OFFLINE,
   MODE_STATIC,
@@ -89,36 +89,65 @@ const generateRandomString = () =>
     .toString(36)
     .slice(2);
 
+const exportLink = (origin, languageCode, id) => {
+  return `${origin}/${languageCode}/pages/${id}/export`;
+};
+
+const instantiatePuppeteer = async () => {
+  Logger.debug('instantiating puppeteer');
+  chromium.args.push('--unlimited-storage');
+  const browser = await chromium.puppeteer.launch({
+    args: chromium.args,
+    defaultViewport: chromium.defaultViewport,
+    executablePath: await chromium.executablePath,
+    // always run headless
+    headless: true,
+  });
+  return browser;
+};
+
+const generateCover = async ({
+  background,
+  title,
+  author,
+  publisher = PUBLISHER_DEFAULT,
+  username = 'Anonymous',
+  sectionNumber = null,
+}) => {
+  Logger.debug(`Generating cover image`);
+
+  const path = `${TMP_FOLDER}/cover_${generateRandomString()}.jpg`;
+
+  // @TODO refactor cover data (date, student name)
+  const metadata = {
+    date: new Date(),
+    username,
+    publisher,
+  };
+  // we wait for the cover image because it loads asynchronously the bakground image file
+  await coverImage(background, title, author, sectionNumber, metadata, path);
+  return path;
+};
+
 const generateEpub = async ({
   title = 'Untitled',
   author = 'Anonymous',
-  username = 'Anonymous',
-  chapters = [],
-  background = COVER_DEFAULT_PATH,
+  sections = [],
   screenshots = [],
+  covers = [],
+  coverPath,
 }) => {
   Logger.debug('generating epub');
   // main options
   const main = {
     title,
     author,
-    publisher: 'Graasp',
-    cover: COVER_PATH,
+    publisher: PUBLISHER_DEFAULT,
+    cover: coverPath,
   };
-
-  // generate cover image
-  // @TODO refactor cover data (date, student name)
-  Logger.debug('Generating cover image');
-  const metadata = {
-    date: new Date(),
-    username,
-    publisher: main.publisher,
-  };
-  // we wait for the cover image because it loads asynchronously the bakground image file
-  await coverImage(background, title, author, metadata);
 
   // make sure that all content sections have data
-  const content = chapters.filter(chapter => chapter.title && chapter.data);
+  const content = sections.filter(section => section.title && section.content);
 
   // css styles
   const styles = fs.readFileSync(CSS_STYLES_FILE);
@@ -159,11 +188,13 @@ const generateEpub = async ({
               }
             });
           });
-          Logger.debug(`info: deleting temporary cover ${COVER_PATH}`);
-          rimraf(COVER_PATH, error => {
-            if (error) {
-              console.error(error);
-            }
+          covers.forEach(path => {
+            Logger.debug(`info: deleting temporary covers ${path}`);
+            rimraf(path, error => {
+              if (error) {
+                console.error(error);
+              }
+            });
           });
           resolve(rvalue);
         });
@@ -171,7 +202,10 @@ const generateEpub = async ({
   );
 };
 
-const retrieveBaseUrl = async (baseElement, host) => {
+const retrieveBaseUrl = async (page, host, selector = '') => {
+  Logger.debug(`retrieve base url`);
+
+  const baseElement = await page.$(`${BASE}${selector}`);
   let url = 'https://';
   if (baseElement) {
     url = await (await baseElement.getProperty('href')).jsonValue();
@@ -647,9 +681,7 @@ const retrievePhasesContent = async (page, mode) => {
   return body;
 };
 
-const saveEpub = async (page, mode, lang, username) => {
-  Logger.debug(`saving epub in ${mode} mode`);
-
+const retrieveMetadata = async (page, baseUrl) => {
   // get title
   Logger.debug(`retrieve title`);
   let title = 'Untitled';
@@ -664,10 +696,6 @@ const saveEpub = async (page, mode, lang, username) => {
     }
   }
 
-  // retrieve base url, and prepare it with necessary
-  const baseElement = await page.$(BASE);
-  const baseUrl = await retrieveBaseUrl(baseElement, GRAASP_HOST);
-
   // @TODO get author element
   // get author
   Logger.debug(`retrieve author`);
@@ -676,6 +704,49 @@ const saveEpub = async (page, mode, lang, username) => {
   // get background
   Logger.debug(`retrieving background`);
   const background = await handleBackground(page, baseUrl);
+
+  // get description if present and create introduction
+  const introduction = {};
+  try {
+    await page.waitForSelector(INTRODUCTION, {
+      timeout: ELEMENTS_TIMEOUT,
+    });
+    // todo: parse title in appropriate language
+    introduction.title = 'Preface';
+    introduction.data = await page.$eval(INTRODUCTION, el => el.outerHTML);
+  } catch (error) {
+    if (error instanceof puppeteerErrors.TimeoutError) {
+      Logger.debug('no preface found');
+    } else {
+      throw error;
+    }
+  }
+
+  return { title, author, background, introduction };
+};
+
+const saveEpub = async (page, mode, lang, username, sectionNumber = null) => {
+  Logger.debug(`saving epub in ${mode} mode`);
+
+  // retrieve base url, and prepare it with necessary
+  const baseUrl = await retrieveBaseUrl(page, GRAASP_HOST);
+
+  // retrieve metadata
+  const { title, author, background, introduction } = await retrieveMetadata(
+    page,
+    baseUrl
+  );
+
+  // generate cover
+  const coverPath = await generateCover({
+    background,
+    title,
+    author,
+    publisher: PUBLISHER_DEFAULT,
+    username,
+    sectionNumber,
+  });
+  const coverContent = { title: '', data: `<img src="${coverPath}"/>` };
 
   // epub-gen handle images by himself
   // screenshot replacements have to come after image src changes
@@ -715,23 +786,6 @@ const saveEpub = async (page, mode, lang, username) => {
   // replace download unspported div with screenshots
   const unsupportedScreenshots = await handleUnsupported(page, mode);
 
-  // get description if present and create introduction
-  const introduction = {};
-  try {
-    await page.waitForSelector(INTRODUCTION, {
-      timeout: ELEMENTS_TIMEOUT,
-    });
-    // todo: parse title in appropriate language
-    introduction.title = 'Preface';
-    introduction.data = await page.$eval(INTRODUCTION, el => el.outerHTML);
-  } catch (error) {
-    if (error instanceof puppeteerErrors.TimeoutError) {
-      Logger.debug('no preface found');
-    } else {
-      throw error;
-    }
-  }
-
   // get body for epub
   // use the export class to differentiate from tools content
   Logger.debug(`retrieving phase content`);
@@ -756,7 +810,11 @@ const saveEpub = async (page, mode, lang, username) => {
   }
 
   // concatenate introduction and body
-  const chapters = [introduction, ...body, tools];
+  const content = [introduction, ...body, tools].filter(
+    chapter => chapter.data
+  );
+
+  const sections = [{ title, author, content, coverContent }];
 
   const screenshots = [
     ...appScreenshots,
@@ -770,22 +828,22 @@ const saveEpub = async (page, mode, lang, username) => {
     ...videoScreenshots,
   ];
   // prepare epub
-  return generateEpub({
+  return {
     title,
     author,
-    username,
-    chapters,
+    sections,
     background,
     screenshots,
-  });
+    coverPath,
+  };
 };
 
-const formatSpace = async (page, format, mode, lang, username) => {
+const formatSpace = async (page, format, epubParams) => {
   Logger.debug('formatting space');
   switch (format) {
     case 'epub':
       // generate epub
-      return saveEpub(page, mode, lang, username);
+      return generateEpub(epubParams);
     case 'png':
       // print screenshot
       return page.screenshot({
@@ -825,142 +883,188 @@ const signInViewer = async page => {
   ]);
 };
 
-const scrape = async ({
+const puppeteerLogin = async (
+  browser,
   url,
-  format,
+  loginTypeUrl,
+  username,
+  password,
+  dryRun,
+  networkPreset
+) => {
+  const page = await browser.newPage();
+
+  // dry run allows throttling
+  if (dryRun) {
+    // Connect to Chrome DevTools
+    const client = await page.target().createCDPSession();
+
+    // Set throttling property
+    await client.send(
+      'Network.emulateNetworkConditions',
+      NETWORK_PRESETS[networkPreset]
+    );
+  }
+
+  // todo: factor out viewport dims
+  await page.setViewport({
+    width: VIEWPORT_WIDTH,
+    height: 1200,
+  });
+
+  Logger.debug(`visiting page ${url}`);
+
+  await page.goto(url, {
+    waitUntil: 'networkidle0',
+    // one minute timeout
+    timeout: TIMEOUT,
+  });
+
+  Logger.debug('figuring out auth type');
+
+  // login routine depends on the origin
+  if (url.match(GRAASP_VIEWER)) {
+    await page.waitForSelector(VIEWER_USERNAME, {
+      timeout: LOGIN_TIMEOUT,
+    });
+    await page.type(VIEWER_USERNAME, username);
+    await page.type(VIEWER_PASSWORD, password);
+    await signInViewer(page);
+  } else if (url.match(GRAASP_CLOUD)) {
+    let auth = AUTH_TYPE_ANONYMOUS;
+    // this endpoint will return a 401 so we catch to find the auth type
+    try {
+      const loginTypeResponse = await request({
+        uri: loginTypeUrl,
+        json: true,
+      });
+      Logger.debug(loginTypeResponse);
+      ({ body: { auth } = {} } = loginTypeResponse);
+    } catch (err) {
+      Logger.debug(err);
+      ({ error: { auth } = {} } = err);
+
+      if (!auth) {
+        throw err;
+      }
+    }
+
+    // only log the type of auth in debug mode
+    Logger.debug(`auth type: ${auth}`);
+
+    switch (auth) {
+      case AUTH_TYPE_USERNAME:
+        // TODO throw error if no username
+        await page.waitForSelector(CLOUD_USERNAME, {
+          timeout: 1000,
+        });
+        await page.type(CLOUD_USERNAME, username);
+        await signIn(page);
+        break;
+
+      case AUTH_TYPE_PASSWORD:
+        // TODO throw error if no username
+        await page.waitForSelector(CLOUD_USERNAME, {
+          timeout: 1000,
+        });
+        await page.type(CLOUD_USERNAME, username);
+        await page.type(CLOUD_PASSWORD, password);
+        await signIn(page);
+        break;
+
+      case AUTH_TYPE_ANONYMOUS:
+        await signIn(page);
+        break;
+
+      default:
+    }
+  } else {
+    throw Error(`Unexpected origin: ${url}`);
+  }
+
+  // wait three more seconds just in case, mainly to wait for iframes to load
+  await page.waitFor(3000);
+
+  // reset the viewport for screenshots visiblity
+  const body = await page.$(ROOT);
+  const maxHeight = Math.ceil((await body.boundingBox()).height);
+  await page.setViewport({
+    width: VIEWPORT_WIDTH,
+    height: maxHeight,
+  });
+
+  // wait three more seconds just in case, mainly to wait for iframes and apps to load
+  const nbFrames = page.mainFrame().childFrames().length;
+  const waitingTime = 3000 + nbFrames * FRAMES_TIMEOUT;
+  Logger.debug(`wait for ${waitingTime}ms`);
+  await page.waitFor(waitingTime);
+
+  return page;
+};
+
+const handleSubspace = async (
+  url,
   loginTypeUrl,
   username,
   password,
   mode,
   lang,
+  sectionNumber,
   dryRun,
-  networkPreset,
-}) => {
-  Logger.debug('instantiating puppeteer');
-  const browser = await chromium.puppeteer.launch({
-    args: chromium.args,
-    defaultViewport: chromium.defaultViewport,
-    executablePath: await chromium.executablePath,
-    // always run headless
-    headless: true,
+  networkPreset
+) => {
+  // instantiate multiple puppeteer to avoid page crash
+  const browser = await instantiatePuppeteer();
+
+  const page = await puppeteerLogin(
+    browser,
+    url,
+    loginTypeUrl,
+    username,
+    password,
+    dryRun,
+    networkPreset
+  );
+  const params = await saveEpub(page, mode, lang, username, sectionNumber);
+
+  await browser.close();
+  return params;
+};
+
+// main space scraping
+// retrieve main space metadata
+const handleMainSpace = async (
+  browser,
+  url,
+  loginTypeUrl,
+  username,
+  password,
+  dryRun,
+  networkPreset
+) => {
+  Logger.debug('scraping main space');
+  const mainPage = await puppeteerLogin(
+    browser,
+    url,
+    loginTypeUrl,
+    username,
+    password,
+    dryRun,
+    networkPreset
+  );
+  const baseUrl = await retrieveBaseUrl(mainPage, GRAASP_HOST);
+  const metadata = await retrieveMetadata(mainPage, baseUrl);
+  const { background, title, author } = metadata;
+
+  // generate main cover
+  const coverPath = await generateCover({
+    background,
+    title,
+    author,
+    publisher: PUBLISHER_DEFAULT,
+    username,
   });
-
-  try {
-    const page = await browser.newPage();
-
-    // dry run allows throttling
-    if (dryRun) {
-      // Connect to Chrome DevTools
-      const client = await page.target().createCDPSession();
-
-      // Set throttling property
-      await client.send(
-        'Network.emulateNetworkConditions',
-        NETWORK_PRESETS[networkPreset]
-      );
-    }
-
-    // todo: factor out viewport dims
-    await page.setViewport({
-      width: VIEWPORT_WIDTH,
-      height: 1200,
-    });
-
-    Logger.debug('visiting page');
-
-    await page.goto(url, {
-      waitUntil: 'networkidle0',
-      // one minute timeout
-      timeout: TIMEOUT,
-    });
-
-    Logger.debug('figuring out auth type');
-    Logger.debug(url.match(GRAASP_VIEWER));
-    Logger.debug(url);
-
-    // login routine depends on the origin
-    if (url.match(GRAASP_VIEWER)) {
-      await page.waitForSelector(VIEWER_USERNAME, {
-        timeout: LOGIN_TIMEOUT,
-      });
-      await page.type(VIEWER_USERNAME, username);
-      await page.type(VIEWER_PASSWORD, password);
-      await signInViewer(page);
-    } else if (url.match(GRAASP_CLOUD)) {
-      let auth = AUTH_TYPE_ANONYMOUS;
-      // this endpoint will return a 401 so we catch to find the auth type
-      try {
-        const loginTypeResponse = await request({
-          uri: loginTypeUrl,
-          json: true,
-        });
-        Logger.debug(loginTypeResponse);
-        ({ body: { auth } = {} } = loginTypeResponse);
-      } catch (err) {
-        Logger.debug(err);
-        ({ error: { auth } = {} } = err);
-
-        if (!auth) {
-          throw err;
-        }
-      }
-
-      // only log the type of auth in debug mode
-      Logger.debug(`auth type: ${auth}`);
-
-      switch (auth) {
-        case AUTH_TYPE_USERNAME:
-          // TODO throw error if no username
-          await page.waitForSelector(CLOUD_USERNAME, {
-            timeout: 1000,
-          });
-          await page.type(CLOUD_USERNAME, username);
-          await signIn(page);
-          break;
-
-        case AUTH_TYPE_PASSWORD:
-          // TODO throw error if no username
-          await page.waitForSelector(CLOUD_USERNAME, {
-            timeout: 1000,
-          });
-          await page.type(CLOUD_USERNAME, username);
-          await page.type(CLOUD_PASSWORD, password);
-          await signIn(page);
-          break;
-
-        case AUTH_TYPE_ANONYMOUS:
-          await signIn(page);
-          break;
-
-        default:
-      }
-    } else {
-      throw Error(`Unexpected origin: ${url}`);
-    }
-
-    // wait three more seconds just in case, mainly to wait for iframes and apps to load
-    const nbFrames = page.mainFrame().childFrames().length;
-    const waitingTime = 3000 + nbFrames * FRAMES_TIMEOUT;
-    Logger.debug(`wait for ${waitingTime}ms`);
-    await page.waitFor(waitingTime);
-
-    // reset the viewport for screenshots visiblity
-    const body = await page.$(ROOT);
-    const maxHeight = Math.ceil((await body.boundingBox()).height);
-    await page.setViewport({
-      width: VIEWPORT_WIDTH,
-      height: maxHeight,
-    });
-
-    const formattedPage = await formatSpace(page, format, mode, lang, username);
-    await browser.close();
-    return formattedPage;
-  } catch (err) {
-    Logger.error(`error scraping ${url}`, err);
-    return false;
-  } finally {
-    await browser.close();
-  }
+  return { coverPath, ...metadata };
 };
 
 const convertSpaceToFile = async (id, body, headers) => {
@@ -973,6 +1077,7 @@ const convertSpaceToFile = async (id, body, headers) => {
     username,
     password,
     mode = MODE_STATIC,
+    spaces = [],
     dryRun = false,
     networkPreset = DEFAULT_NETWORK_PRESET,
   } = body;
@@ -987,25 +1092,98 @@ const convertSpaceToFile = async (id, body, headers) => {
     const host = split[1];
     origin = `${protocol}://${VIEWER_SUBDOMAIN}.${host}`;
   }
-  const url = `${origin}/${languageCode}/pages/${id}/export`;
+  const url = exportLink(origin, languageCode, id);
   const loginTypeUrl = `${AUTH_TYPE_HOST}/${id}`;
 
-  const page = await scrape({
-    url,
-    format,
-    loginTypeUrl,
-    username,
-    password,
-    mode,
-    lang,
-    dryRun,
-    networkPreset,
-  });
-  if (!page) {
+  const browser = await instantiatePuppeteer();
+
+  let page;
+  let params = [];
+
+  // multiple space scraping for epub format only
+  if (spaces.length && format === 'epub') {
+    Logger.debug('scraping multiple spaces');
+
+    const spaceUrls = spaces.map(space =>
+      exportLink(origin, languageCode, space.id)
+    );
+
+    // create promises for the main space and the subspaces
+    const mainSpacePromise = handleMainSpace(
+      browser,
+      url,
+      loginTypeUrl,
+      username,
+      password,
+      dryRun,
+      networkPreset
+    );
+    const subspacesPromises = spaceUrls.map(async (spaceUrl, index) =>
+      handleSubspace(
+        spaceUrl,
+        loginTypeUrl,
+        username,
+        password,
+        mode,
+        lang,
+        index + 1,
+        dryRun,
+        networkPreset
+      )
+    );
+
+    params = await Promise.all([mainSpacePromise, ...subspacesPromises]).then(
+      spacesParams => {
+        const mainPageMetadata = spacesParams.shift();
+
+        // merge spaces' content
+        let allSections = spacesParams.map(param => param.sections);
+        allSections = Array.prototype.concat.apply([], allSections);
+
+        const allCovers = spacesParams.map(param => param.coverPath);
+
+        let allScreenshots = spacesParams.map(param => param.screenshots);
+        allScreenshots = Array.prototype.concat.apply([], allScreenshots);
+        // @TODO add main space description/introduction in backcover
+
+        return {
+          title: mainPageMetadata.title,
+          author: mainPageMetadata.author,
+          username,
+          sections: allSections,
+          background: mainPageMetadata.background,
+          screenshots: allScreenshots,
+          covers: allCovers,
+          coverPath: mainPageMetadata.coverPath,
+        };
+      }
+    );
+  } else {
+    // single space
+    Logger.debug('scraping single space');
+    page = await puppeteerLogin(
+      browser,
+      url,
+      loginTypeUrl,
+      username,
+      password,
+      dryRun,
+      networkPreset
+    );
+
+    if (format === 'epub') {
+      params = await saveEpub(page, mode, lang, username);
+    }
+  }
+
+  const spaceFile = await formatSpace(page, format, params);
+  await browser.close();
+
+  if (!spaceFile) {
     const prettyUrl = url.split('?')[0];
     throw Error(`space ${prettyUrl} could not be printed`);
   }
-  return page;
+  return spaceFile;
 };
 
 const upload = (file, fileId) => {

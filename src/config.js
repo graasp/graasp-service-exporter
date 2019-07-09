@@ -69,9 +69,10 @@ export const MODE_STATIC = 'static';
 export const MODE_INTERACTIVE_OFFLINE = 'interactive-offline';
 export const MODE_INTERACTIVE_ONLINE = 'interactive-online';
 
-export const COVER_PATH = `${TMP_FOLDER}/cover.jpg`;
 export const COVER_DEFAULT_PATH =
   'https://d28t6ykz01qrod.cloudfront.net/epfl/bg.jpg';
+
+export const PUBLISHER_DEFAULT = 'Graasp';
 
 export const BACKGROUND_COLOR = 'white';
 export const FONT = 'Arial';

@@ -1,8 +1,11 @@
 import { createCanvas, loadImage } from 'canvas';
 import fs from 'fs';
 import dateFormat from 'dateformat';
+import RomanNumerals from 'roman-numerals';
 import Logger from '../utils/Logger';
-import { BACKGROUND_COLOR, FONT, FONT_COLOR, COVER_PATH } from '../config';
+import { BACKGROUND_COLOR, FONT, FONT_COLOR } from '../config';
+
+const { toRoman } = RomanNumerals;
 
 const canvas = createCanvas(600, 800);
 const context = canvas.getContext('2d');
@@ -17,8 +20,11 @@ const lineSpacing = 5;
 const titleFontSize = 60;
 const titleMargin = 10;
 
+// secondary title properties
+const secondaryTitleFontSize = 40;
+
 // author properties
-const authorFontSize = 20;
+// const authorFontSize = 20;
 
 // image properties
 const imageMargin = 15;
@@ -45,6 +51,17 @@ const prepareInfoTexts = metadata => {
   return lines;
 };
 
+const writeSecondaryTitle = (heightPadding, title) => {
+  context.font = `${secondaryTitleFontSize}px ${FONT}`;
+  const y =
+    imageMargin +
+    heightPadding +
+    imageHeight +
+    secondaryTitleFontSize +
+    lineSpacing;
+  context.fillText(title, marginLeft, y);
+};
+
 const writeMetadata = (heightPadding, metadata) => {
   const lines = prepareInfoTexts(metadata);
   lines.forEach((line, index) => {
@@ -58,7 +75,15 @@ const writeMetadata = (heightPadding, metadata) => {
   });
 };
 
-const coverImage = async (background, title, author, metadata) => {
+// sectionNumber exists if the cover generated is for a subspace
+const coverImage = async (
+  background,
+  title,
+  author,
+  sectionNumber,
+  metadata,
+  path
+) => {
   // background
   context.fillStyle = BACKGROUND_COLOR;
   context.fillRect(0, 0, canvas.width, canvas.height);
@@ -67,16 +92,30 @@ const coverImage = async (background, title, author, metadata) => {
   // @TODO ils title too long
   context.font = `${titleFontSize}px ${FONT}`;
   context.fillStyle = FONT_COLOR;
-  context.fillText(title, marginLeft, marginTop + titleMargin + titleFontSize);
+  const headerTitle = sectionNumber
+    ? `Section ${toRoman(sectionNumber)}`
+    : title;
+  context.fillText(
+    headerTitle,
+    marginLeft,
+    marginTop + titleMargin + titleFontSize
+  );
 
-  // ils author
   const headerHeight =
-    marginTop + authorFontSize + titleFontSize + 2 * titleMargin + lineSpacing;
-  context.font = `${authorFontSize}px ${FONT}`;
-  context.fillText(author, marginLeft, headerHeight);
+    marginTop + titleFontSize + 2 * titleMargin + lineSpacing;
+  // ils author
+  // if(!sectionNumber) {
+  //   headerHeight += authorFontSize;
+  //   context.font = `${authorFontSize}px ${FONT}`;
+  //   context.fillText(author, marginLeft, headerHeight);
+  // }
 
   // ils metadata
-  writeMetadata(headerHeight, metadata);
+  if (sectionNumber) {
+    writeSecondaryTitle(headerHeight, title);
+  } else {
+    writeMetadata(headerHeight, metadata);
+  }
 
   // Image background
   await loadImage(background).then(image => {
@@ -119,7 +158,7 @@ const coverImage = async (background, title, author, metadata) => {
       imageHeight // size from position
     );
     const buf = canvas.toBuffer();
-    fs.writeFileSync(COVER_PATH, buf);
+    fs.writeFileSync(path, buf);
     Logger.debug('Cover image saved');
   });
 };
