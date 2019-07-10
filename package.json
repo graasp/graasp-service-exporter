@@ -51,7 +51,7 @@
   },
   "dependencies": {
     "@babel/runtime": "7.4.5",
-    "@graasp/epub": "0.1.1",
+    "@graasp/epub": "0.1.3",
     "aws-sdk": "2.464.0",
     "bson-objectid": "1.2.5",
     "canvas": "2.5.0",
