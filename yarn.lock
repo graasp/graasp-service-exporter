@@ -885,10 +885,10 @@
   dependencies:
     find-up "^2.1.0"
 
-"@graasp/epub@0.1.1":
-  version "0.1.1"
-  resolved "https://registry.yarnpkg.com/@graasp/epub/-/epub-0.1.1.tgz#a584f402476f851ff216938defc8c03b80bcddd9"
-  integrity sha512-9GeVOXl4DdRFWqBnTypk0F2DDCc60f+LrlsWG3byqSQcYzoQzLe9VncXie/fIv/ZvFYBjd3zOoRugyr4V0Wcaw==
+"@graasp/epub@0.1.3":
+  version "0.1.3"
+  resolved "https://registry.yarnpkg.com/@graasp/epub/-/epub-0.1.3.tgz#2f996f99d9402ec6917aa6273b5f06a54f695ffd"
+  integrity sha512-YG+A7cfCreosJ9nWBM74tLkEgBIhbI5btAsScRc7eXneczVaNiGcK2l8Z50pV9pTjmWmQa1OxEDNSIvvuWfxOw==
   dependencies:
     archiver "^3.0.0"
     cheerio "^0.22.0"

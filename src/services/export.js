@@ -1077,7 +1077,7 @@ const convertSpaceToFile = async (id, body, headers) => {
     username,
     password,
     mode = MODE_STATIC,
-    spaces = [],
+    spaceIds = [],
     dryRun = false,
     networkPreset = DEFAULT_NETWORK_PRESET,
   } = body;
@@ -1101,11 +1101,11 @@ const convertSpaceToFile = async (id, body, headers) => {
   let params = [];
 
   // multiple space scraping for epub format only
-  if (spaces.length && format === 'epub') {
+  if (spaceIds.length && format === 'epub') {
     Logger.debug('scraping multiple spaces');
 
-    const spaceUrls = spaces.map(space =>
-      exportLink(origin, languageCode, space.id)
+    const spaceUrls = spaceIds.map(spaceId =>
+      exportLink(origin, languageCode, spaceId)
     );
 
     // create promises for the main space and the subspaces
