@@ -96,7 +96,7 @@ const exportLink = (origin, languageCode, id) => {
 const instantiatePuppeteer = async () => {
   Logger.debug('instantiating puppeteer');
   chromium.args.push('--unlimited-storage');
-  chromium.args.push('--force-gpu-mem-available-mb')
+  chromium.args.push('--disable-dev-shm-usage');
   const browser = await chromium.puppeteer.launch({
     args: chromium.args,
     defaultViewport: chromium.defaultViewport,
@@ -243,26 +243,25 @@ const screenshotElements = async (elements, page) => {
   // eslint-disable-next-line no-restricted-syntax
   for (const element of elements) {
     try {
-    // get id property and resolve it as a string
-    // eslint-disable-next-line no-await-in-loop
-    let id = await (await element.getProperty('id')).jsonValue();
+      // get id property and resolve it as a string
+      // eslint-disable-next-line no-await-in-loop
+      let id = await (await element.getProperty('id')).jsonValue();
 
-    // if there is no id create a random id and set it in the dom
-    if (!id || id === '') {
-      id = generateRandomString();
+      // if there is no id create a random id and set it in the dom
+      if (!id || id === '') {
+        id = generateRandomString();
+        // eslint-disable-next-line no-await-in-loop
+        await evalSetIdToElement(page, element, id);
+      }
+      // save screenshot with id as filename
+      const path = `${TMP_FOLDER}/${id}.${SCREENSHOT_FORMAT}`;
       // eslint-disable-next-line no-await-in-loop
-      await evalSetIdToElement(page, element, id);
-    }
-    // save screenshot with id as filename
-    const path = `${TMP_FOLDER}/${id}.${SCREENSHOT_FORMAT}`;
-    // eslint-disable-next-line no-await-in-loop
-    await element.screenshot({
-      path,
-      // eslint-disable-next-line no-await-in-loop
-    });
-    paths.push(path);
-    }
-    catch (error) {
+      await element.screenshot({
+        path,
+        // eslint-disable-next-line no-await-in-loop
+      });
+      paths.push(path);
+    } catch (error) {
       // this catch can capture Node 0 Screenshot Error
       Logger.debug(error);
     }
@@ -360,7 +359,7 @@ const handleBackground = async (page, baseUrl) => {
     if (!(background instanceof String) && typeof background !== 'string') {
       background = COVER_DEFAULT_PATH;
     }
-  } catch (error) { 
+  } catch (error) {
     if (error instanceof puppeteerErrors.TimeoutError) {
       Logger.debug('no background image found');
     } else {
@@ -1004,11 +1003,11 @@ const puppeteerLogin = async (
     height: maxHeight,
   });
 
-    // wait three more seconds just in case, mainly to wait for iframes and apps to load
-    const nbFrames = page.mainFrame().childFrames().length;
-    const waitingTime = 3000 + nbFrames * FRAMES_TIMEOUT;
-    Logger.debug(`waiting for ${waitingTime}ms`);
-    await page.waitFor(waitingTime);
+  // wait three more seconds just in case, mainly to wait for iframes and apps to load
+  const nbFrames = page.mainFrame().childFrames().length;
+  const waitingTime = 3000 + nbFrames * FRAMES_TIMEOUT;
+  Logger.debug(`waiting for ${waitingTime}ms`);
+  await page.waitFor(waitingTime);
   return page;
 };
 
