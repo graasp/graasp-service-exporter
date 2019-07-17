@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+# [0.5.0](https://github.com/graasp/graasp-service-exporter/compare/v0.4.2...v0.5.0) (2019-07-17)
+
+### Bug Fixes
+
+- increase timeout to properly load apps content ([b13860d](https://github.com/graasp/graasp-service-exporter/commit/b13860d)), closes [#66](https://github.com/graasp/graasp-service-exporter/issues/66)
+- increase timeout to properly load apps content ([f8fce0f](https://github.com/graasp/graasp-service-exporter/commit/f8fce0f)), closes [#66](https://github.com/graasp/graasp-service-exporter/issues/66)
+- rebase for pull request ([be02fc6](https://github.com/graasp/graasp-service-exporter/commit/be02fc6))
+- receives space ids as array, update epub-gen package ([46f965d](https://github.com/graasp/graasp-service-exporter/commit/46f965d))
+- receives space ids as array, update epub-gen package ([9875bcf](https://github.com/graasp/graasp-service-exporter/commit/9875bcf))
+
+### Features
+
+- add back cover content ([dc2ab1d](https://github.com/graasp/graasp-service-exporter/commit/dc2ab1d)), closes [#60](https://github.com/graasp/graasp-service-exporter/issues/60)
+- add back cover content ([f1b7db5](https://github.com/graasp/graasp-service-exporter/commit/f1b7db5)), closes [#60](https://github.com/graasp/graasp-service-exporter/issues/60)
+- export multiple ils ([3464cb6](https://github.com/graasp/graasp-service-exporter/commit/3464cb6)), closes [#67](https://github.com/graasp/graasp-service-exporter/issues/67)
+- export multiple ils ([f7387fd](https://github.com/graasp/graasp-service-exporter/commit/f7387fd)), closes [#67](https://github.com/graasp/graasp-service-exporter/issues/67)
+- multiple space export displaying all covers ([2ec8e4f](https://github.com/graasp/graasp-service-exporter/commit/2ec8e4f)), closes [#67](https://github.com/graasp/graasp-service-exporter/issues/67)
+- multiple space export displaying all covers ([c4615f6](https://github.com/graasp/graasp-service-exporter/commit/c4615f6)), closes [#67](https://github.com/graasp/graasp-service-exporter/issues/67)
+- multiple space export displaying all covers ([d5bd4aa](https://github.com/graasp/graasp-service-exporter/commit/d5bd4aa)), closes [#67](https://github.com/graasp/graasp-service-exporter/issues/67)
+
 ## [0.4.2](https://github.com/graasp/graasp-service-exporter/compare/v0.4.1...v0.4.2) (2019-06-21)
 
 ### Bug Fixes
