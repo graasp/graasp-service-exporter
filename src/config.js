@@ -72,6 +72,21 @@ export const MODE_INTERACTIVE_ONLINE = 'interactive-online';
 export const COVER_DEFAULT_PATH =
   'https://d28t6ykz01qrod.cloudfront.net/epfl/bg.jpg';
 
+export const TEXT_SEPARATOR = '<br><br>';
+export const DEFAULT_BACK_COVER = `
+Generated in Switzerland by Graasp${TEXT_SEPARATOR}
+This work is subject to copyright. All rights are reserved by the Publisher, 
+whether the whole or part of the material is concerned, specifically the rights of translation, reprinting, reuse of 
+illustrations, recitation, broadcasting, reproduction on microfilms or in any other physical way, and transmission or 
+information storage and retrieval, electronic adaptation, computer software, or by similar or dissimilar methodology 
+now known or hereafter developed. Exempted from this legal reservation are brief excerpts in connection with reviews 
+or scholarly analysis or material supplied specifically for the purpose of being entered and executed on a computer system, 
+for exclusive use by the purchaser of the work. Duplication of this publication or parts thereof is permitted only under the 
+provisions of the Copyright Law of the Publisher’s location, in its current version, and permission for use must always be obtained 
+from Springer. Permissions for use may be obtained through RightsLink at the Copyright Clearance Center. Violations are liable to 
+prosecution under the respective Copyright Law.${TEXT_SEPARATOR}
+Graasp (graasp.eu) is developed at the École Polytechnique Fédérale de Lausanne (epfl.ch)
+`;
 export const PUBLISHER_DEFAULT = 'Graasp';
 
 export const BACKGROUND_COLOR = 'white';
