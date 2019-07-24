@@ -83,9 +83,8 @@ now known or hereafter developed. Exempted from this legal reservation are brief
 or scholarly analysis or material supplied specifically for the purpose of being entered and executed on a computer system, 
 for exclusive use by the purchaser of the work. Duplication of this publication or parts thereof is permitted only under the 
 provisions of the Copyright Law of the Publisher’s location, in its current version, and permission for use must always be obtained 
-from Springer. Permissions for use may be obtained through RightsLink at the Copyright Clearance Center. Violations are liable to 
-prosecution under the respective Copyright Law.${TEXT_SEPARATOR}
-Graasp (graasp.eu) is developed at the École Polytechnique Fédérale de Lausanne (epfl.ch)
+from Graasp. Permissions for use may be obtained through the support page on the Graasp platform.${TEXT_SEPARATOR}
+Graasp (graasp.eu) is developed at the École Polytechnique Fédérale de Lausanne (epfl.ch).
 `;
 export const PUBLISHER_DEFAULT = 'Graasp';
 

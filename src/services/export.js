@@ -823,7 +823,7 @@ const saveEpub = async (page, mode, lang, username, sectionNumber = null) => {
 
   // title is needed for epub xml page path
   // @TODO add data to section's back cover
-  const backCover = { title: 'Back Cover', data: '' };
+  const backCover = { data: '' };
 
   // concatenate introduction and body
   const content = [introduction, ...body, tools].filter(
@@ -1162,7 +1162,6 @@ const convertSpaceToFile = async (id, body, headers) => {
 
         // merge back covers content
         const allBackCovers = {
-          title: 'Back Cover',
           data: spacesParams
             .map(param => param.backCover.data)
             .join(TEXT_SEPARATOR),
