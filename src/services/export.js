@@ -1167,9 +1167,11 @@ const convertSpaceToFile = async (id, body, headers) => {
             .join(TEXT_SEPARATOR),
         };
         // add main space description in back cover
-        allBackCovers.data = `${
-          mainPageMetadata.introduction.data
-        }${TEXT_SEPARATOR}${allBackCovers.data}`;
+        if (mainPageMetadata.introduction.data) {
+          allBackCovers.data = `${
+            mainPageMetadata.introduction.data
+          }${TEXT_SEPARATOR}${allBackCovers.data}`;
+        }
 
         let allScreenshots = spacesParams.map(param => param.screenshots);
         allScreenshots = Array.prototype.concat.apply([], allScreenshots);
