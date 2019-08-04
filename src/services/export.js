@@ -1116,82 +1116,104 @@ const convertSpaceToFile = async (id, body, headers) => {
   let page;
   let params = [];
 
-  // multiple space scraping for epub format only
-  if (spaceIds.length && format === 'epub') {
-    Logger.debug('scraping multiple spaces');
+  // export to epub
+  if (format === 'epub') {
+    // multiple space scraping
+    if (spaceIds.length) {
+      Logger.debug('scraping multiple spaces for epub');
 
-    const spaceUrls = spaceIds.map(spaceId =>
-      exportLink(origin, languageCode, spaceId)
-    );
+      const spaceUrls = spaceIds.map(spaceId =>
+        exportLink(origin, languageCode, spaceId)
+      );
 
-    // create promises for the main space and the subspaces
-    const mainSpacePromise = handleMainSpace(
-      browser,
-      url,
-      loginTypeUrl,
-      username,
-      password,
-      dryRun,
-      networkPreset
-    );
-    const subspacesPromises = spaceUrls.map(async (spaceUrl, index) =>
-      handleSubspace(
-        spaceUrl,
+      // create promises for the main space and the subspaces
+      const mainSpacePromise = handleMainSpace(
+        browser,
+        url,
         loginTypeUrl,
         username,
         password,
-        mode,
-        lang,
-        index + 1,
         dryRun,
         networkPreset
-      )
-    );
-
-    params = await Promise.all([mainSpacePromise, ...subspacesPromises]).then(
-      spacesParams => {
-        const mainPageMetadata = spacesParams.shift();
-
-        // merge spaces' content
-        let allSections = spacesParams.map(param => param.sections);
-        allSections = Array.prototype.concat.apply([], allSections);
-
-        const allCovers = spacesParams
-          .map(param => param.coverPath)
-          .filter(cover => cover != null);
-
-        // merge back covers content
-        const allBackCovers = {
-          data: spacesParams
-            .map(param => param.backCover.data)
-            .join(TEXT_SEPARATOR),
-        };
-        // add main space description in back cover
-        if (mainPageMetadata.introduction.data) {
-          allBackCovers.data = `${
-            mainPageMetadata.introduction.data
-          }${TEXT_SEPARATOR}${allBackCovers.data}`;
-        }
-
-        let allScreenshots = spacesParams.map(param => param.screenshots);
-        allScreenshots = Array.prototype.concat.apply([], allScreenshots);
-
-        return {
-          title: mainPageMetadata.title,
-          author: mainPageMetadata.author,
+      );
+      const subspacesPromises = spaceUrls.map(async (spaceUrl, index) =>
+        handleSubspace(
+          spaceUrl,
+          loginTypeUrl,
           username,
-          sections: allSections,
-          background: mainPageMetadata.background,
-          screenshots: allScreenshots,
-          covers: allCovers,
-          coverPath: mainPageMetadata.coverPath,
-          backCover: allBackCovers,
-        };
-      }
-    );
+          password,
+          mode,
+          lang,
+          index + 1,
+          dryRun,
+          networkPreset
+        )
+      );
+
+      params = await Promise.all([mainSpacePromise, ...subspacesPromises]).then(
+        spacesParams => {
+          const mainPageMetadata = spacesParams.shift();
+
+          // merge spaces' content
+          let allSections = spacesParams.map(param => param.sections);
+          allSections = Array.prototype.concat.apply([], allSections);
+
+          const allCovers = spacesParams
+            .map(param => param.coverPath)
+            .filter(cover => cover != null);
+
+          // merge back covers content
+          const allBackCovers = {
+            data: spacesParams
+              .map(param => param.backCover.data)
+              .join(TEXT_SEPARATOR),
+          };
+          // add main space description in back cover
+          if (mainPageMetadata.introduction.data) {
+            allBackCovers.data = `${
+              mainPageMetadata.introduction.data
+            }${TEXT_SEPARATOR}${allBackCovers.data}`;
+          }
+
+          let allScreenshots = spacesParams.map(param => param.screenshots);
+          allScreenshots = Array.prototype.concat.apply([], allScreenshots);
+
+          return {
+            title: mainPageMetadata.title,
+            author: mainPageMetadata.author,
+            username,
+            sections: allSections,
+            background: mainPageMetadata.background,
+            screenshots: allScreenshots,
+            covers: allCovers,
+            coverPath: mainPageMetadata.coverPath,
+            backCover: allBackCovers,
+          };
+        }
+      );
+    } else {
+      // single space
+      Logger.debug('scraping single space for epub');
+      page = await puppeteerLogin(
+        browser,
+        url,
+        loginTypeUrl,
+        username,
+        password,
+        dryRun,
+        networkPreset
+      );
+
+      params = await saveEpub(page, mode, lang, username);
+    }
+
+    // add default back cover info
+    params.backCover.data = `${
+      params.backCover.data
+    }${TEXT_SEPARATOR}${DEFAULT_BACK_COVER}`;
   } else {
-    // single space
-    Logger.debug('scraping single space');
+    // export to pdf, png
+    Logger.debug('scraping single space for pdf, png');
     page = await puppeteerLogin(
       browser,
       url,
@@ -1201,17 +1223,7 @@ const convertSpaceToFile = async (id, body, headers) => {
       dryRun,
       networkPreset
     );
-
-    if (format === 'epub') {
-      params = await saveEpub(page, mode, lang, username);
-    }
   }
-
-  // add default back cover info
-  params.backCover.data = `${
-    params.backCover.data
-  }${TEXT_SEPARATOR}${DEFAULT_BACK_COVER}`;
-
   const spaceFile = await formatSpace(page, format, params);
   await browser.close();
 
