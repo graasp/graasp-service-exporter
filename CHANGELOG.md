@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+# [0.6.0](https://github.com/graasp/graasp-service-exporter/compare/v0.5.0...v0.6.0) (2019-08-06)
+
+### Bug Fixes
+
+- handle back cover if there is no main description ([a3b9b8d](https://github.com/graasp/graasp-service-exporter/commit/a3b9b8d))
+- ignore back cover data for png and pdf exports ([1d13cc8](https://github.com/graasp/graasp-service-exporter/commit/1d13cc8))
+
+### Features
+
+- generate single back cover for multi ils export ([8754946](https://github.com/graasp/graasp-service-exporter/commit/8754946)), closes [#80](https://github.com/graasp/graasp-service-exporter/issues/80)
+
 # [0.5.0](https://github.com/graasp/graasp-service-exporter/compare/v0.4.2...v0.5.0) (2019-07-17)
 
 ### Bug Fixes
