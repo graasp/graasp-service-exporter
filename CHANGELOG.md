@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [0.6.2](https://github.com/graasp/graasp-service-exporter/compare/v0.6.1...v0.6.2) (2019-10-18)
+
+### Bug Fixes
+
+- update test docker version ([b0fad62](https://github.com/graasp/graasp-service-exporter/commit/b0fad62f9586aa66e083a0e818a0130a747ceb18))
+
 ## [0.6.1](https://github.com/graasp/graasp-service-exporter/compare/v0.6.0...v0.6.1) (2019-10-18)
 
 ### Bug Fixes
