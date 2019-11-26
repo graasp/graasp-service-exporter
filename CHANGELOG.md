@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [0.6.3](https://github.com/graasp/graasp-service-exporter/compare/v0.6.2...v0.6.3) (2019-11-26)
+
+### Bug Fixes
+
+- skip login for anonymous ilss ([bef01ee](https://github.com/graasp/graasp-service-exporter/commit/bef01ee375ff84bb31eb13098ecef84d5d5fb9f0)), closes [#88](https://github.com/graasp/graasp-service-exporter/issues/88)
+
 ## [0.6.2](https://github.com/graasp/graasp-service-exporter/compare/v0.6.1...v0.6.2) (2019-10-18)
 
 ### Bug Fixes
