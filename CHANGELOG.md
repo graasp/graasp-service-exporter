@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [0.6.4](https://github.com/graasp/graasp-service-exporter/compare/v0.6.3...v0.6.4) (2019-11-26)
+
+
+### Bug Fixes
+
+* wait only for the title in anonymous ilss ([7b8b1f6](https://github.com/graasp/graasp-service-exporter/commit/7b8b1f633591caa095ce26b1ba8745e0d117db4a)), closes [#90](https://github.com/graasp/graasp-service-exporter/issues/90)
+
+
+
 ## [0.6.3](https://github.com/graasp/graasp-service-exporter/compare/v0.6.2...v0.6.3) (2019-11-26)
 
 ### Bug Fixes
