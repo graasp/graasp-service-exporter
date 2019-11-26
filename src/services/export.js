@@ -990,7 +990,10 @@ const puppeteerLogin = async (
         break;
 
       case AUTH_TYPE_ANONYMOUS:
-        await signIn(page);
+        await page.waitForNavigation({
+          timeout: TIMEOUT,
+          waitUntil: 'networkidle0',
+        });
         break;
 
       default:
