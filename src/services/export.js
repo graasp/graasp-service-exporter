@@ -758,7 +758,7 @@ const saveEpub = async (page, mode, lang, username, sectionNumber = null) => {
     username,
     sectionNumber,
   });
-  const coverContent = { title: '', data: `<img src="${coverPath}"/>` };
+  const coverContent = { title: '', data: `<img src="${coverPath}" />` };
 
   // epub-gen handle images by himself
   // screenshot replacements have to come after image src changes
@@ -874,6 +874,8 @@ const formatSpace = async (page, format, epubParams) => {
         margin: {
           top: '1cm',
           bottom: '1cm',
+          left: '1cm',
+          right: '1cm',
         },
         printBackground: true,
       });
