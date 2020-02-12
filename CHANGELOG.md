@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [0.6.6](https://github.com/graasp/graasp-service-exporter/compare/v0.6.5...v0.6.6) (2020-02-12)
+
+### Bug Fixes
+
+- update cloudfront repository ([c507218](https://github.com/graasp/graasp-service-exporter/commit/c5072184817a9bb63358a3141099d9ed2dd35da3))
+
 ## [0.6.5](https://github.com/graasp/graasp-service-exporter/compare/v0.6.4...v0.6.5) (2019-12-09)
 
 ### Bug Fixes
