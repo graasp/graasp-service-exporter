@@ -70,7 +70,7 @@ export const MODE_INTERACTIVE_OFFLINE = 'interactive-offline';
 export const MODE_INTERACTIVE_ONLINE = 'interactive-online';
 
 export const COVER_DEFAULT_PATH =
-  'https://d28t6ykz01qrod.cloudfront.net/epfl/bg.jpg';
+  'https://d15r9r12e2oqn3.cloudfront.net/epfl/bg.jpg';
 
 export const TEXT_SEPARATOR = '<br><br>';
 export const DEFAULT_BACK_COVER = `
