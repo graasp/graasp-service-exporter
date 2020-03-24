@@ -56,9 +56,9 @@
   "dependencies": {
     "@babel/runtime": "7.9.2",
     "@graasp/epub": "0.1.4",
-    "aws-sdk": "2.643.0",
+    "aws-sdk": "2.644.0",
     "bson-objectid": "1.3.0",
-    "canvas": "2.5.0",
+    "canvas": "2.6.1",
     "cheerio": "1.0.0-rc.3",
     "chrome-aws-lambda": "1.18.1",
     "cpy-cli": "2.0.0",
