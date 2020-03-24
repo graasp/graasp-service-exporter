@@ -1,3 +1,4 @@
+/* eslint no-param-reassign: ["error", { "props": false }] */
 import { createCanvas, loadImage } from 'canvas';
 import fs from 'fs';
 import dateFormat from 'dateformat';
@@ -7,8 +8,6 @@ import { BACKGROUND_COLOR, FONT, FONT_COLOR } from '../config';
 
 const { toRoman } = RomanNumerals;
 
-const canvas = createCanvas(600, 800);
-const context = canvas.getContext('2d');
 const marginLeft = 50;
 const marginTop = 100;
 
@@ -51,7 +50,7 @@ const prepareInfoTexts = metadata => {
   return lines;
 };
 
-const writeSecondaryTitle = (heightPadding, title) => {
+const writeSecondaryTitle = (context, heightPadding, title) => {
   context.font = `${secondaryTitleFontSize}px ${FONT}`;
   const y =
     imageMargin +
@@ -62,7 +61,7 @@ const writeSecondaryTitle = (heightPadding, title) => {
   context.fillText(title, marginLeft, y);
 };
 
-const writeMetadata = (heightPadding, metadata) => {
+const writeMetadata = (context, heightPadding, metadata) => {
   const lines = prepareInfoTexts(metadata);
   lines.forEach((line, index) => {
     context.font = `${line.style} ${fontSize}px ${FONT}`;
@@ -84,6 +83,9 @@ const coverImage = async (
   metadata,
   path
 ) => {
+  const canvas = createCanvas(600, 800);
+  const context = canvas.getContext('2d');
+
   // background
   context.fillStyle = BACKGROUND_COLOR;
   context.fillRect(0, 0, canvas.width, canvas.height);
@@ -112,9 +114,9 @@ const coverImage = async (
 
   // ils metadata
   if (sectionNumber) {
-    writeSecondaryTitle(headerHeight, title);
+    writeSecondaryTitle(context, headerHeight, title);
   } else {
-    writeMetadata(headerHeight, metadata);
+    writeMetadata(context, headerHeight, metadata);
   }
 
   // Image background

@@ -356,7 +356,7 @@ describe('handleObjects', () => {
 
 describe('handleOfflineLabs', () => {
   const lang = DEFAULT_LANGUAGE;
-  const baseUrl = 'https://example.com/';
+  const baseUrl = 'https://graasp.eu/';
 
   beforeAll(async () => {
     await initPuppeteerWithMode();
