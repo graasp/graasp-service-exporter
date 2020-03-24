@@ -19,7 +19,7 @@ service: graasp-service-exporter
 
 provider:
   name: aws
-  runtime: nodejs12
+  runtime: nodejs12.x
   stage: ${opt:stage, 'dev'}
   region: eu-central-1
   # the default is 6 seconds
@@ -167,7 +167,7 @@ functions:
   generateExport:
     handler: dist/index.generateExportWithSentry
     memorySize: 3008
-    timeout: 300
+    timeout: 900
     layers:
       - arn:aws:lambda:${self:provider.environment.REGION}:${self:provider.environment.ACCOUNT_ID}:layer:graasp-service-chrome:6
     events:
