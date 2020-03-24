@@ -1,4 +1,4 @@
-FROM lambci/lambda:build-nodejs12.x
+FROM lambci/lambda:build-nodejs8.10
 
 ENV AWS_DEFAULT_REGION eu-central-1
 

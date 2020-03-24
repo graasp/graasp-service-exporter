@@ -19,7 +19,7 @@ service: graasp-service-exporter
 
 provider:
   name: aws
-  runtime: nodejs12.x
+  runtime: nodejs8.10
   stage: ${opt:stage, 'dev'}
   region: eu-central-1
   # the default is 6 seconds
@@ -109,8 +109,6 @@ functions:
   getStatus:
     layers:
       - arn:aws:lambda:${self:provider.environment.REGION}:${self:provider.environment.ACCOUNT_ID}:layer:graasp-service-chrome:6
-      - arn:aws:lambda:${self:provider.environment.REGION}:${self:provider.environment.ACCOUNT_ID}:layer:nodeCanvasLayer:2
-      - arn:aws:lambda:${self:provider.environment.REGION}:${self:provider.environment.ACCOUNT_ID}:layer:canvasLib64Layer:1
     handler: dist/index.getStatusWithSentry
     events:
       - http:
@@ -121,8 +119,6 @@ functions:
   getVersion:
     layers:
       - arn:aws:lambda:${self:provider.environment.REGION}:${self:provider.environment.ACCOUNT_ID}:layer:graasp-service-chrome:6
-      - arn:aws:lambda:${self:provider.environment.REGION}:${self:provider.environment.ACCOUNT_ID}:layer:nodeCanvasLayer:2
-      - arn:aws:lambda:${self:provider.environment.REGION}:${self:provider.environment.ACCOUNT_ID}:layer:canvasLib64Layer:1
     handler: dist/index.getVersionWithSentry
     events:
       - http:
@@ -133,8 +129,6 @@ functions:
   throwError:
     layers:
       - arn:aws:lambda:${self:provider.environment.REGION}:${self:provider.environment.ACCOUNT_ID}:layer:graasp-service-chrome:6
-      - arn:aws:lambda:${self:provider.environment.REGION}:${self:provider.environment.ACCOUNT_ID}:layer:nodeCanvasLayer:2
-      - arn:aws:lambda:${self:provider.environment.REGION}:${self:provider.environment.ACCOUNT_ID}:layer:canvasLib64Layer:1
     handler: dist/index.throwErrorWithSentry
     events:
       - http:
@@ -145,8 +139,6 @@ functions:
   getExport:
     layers:
       - arn:aws:lambda:${self:provider.environment.REGION}:${self:provider.environment.ACCOUNT_ID}:layer:graasp-service-chrome:6
-      - arn:aws:lambda:${self:provider.environment.REGION}:${self:provider.environment.ACCOUNT_ID}:layer:nodeCanvasLayer:2
-      - arn:aws:lambda:${self:provider.environment.REGION}:${self:provider.environment.ACCOUNT_ID}:layer:canvasLib64Layer:1
     handler: dist/index.getExportWithSentry
     events:
       - http:
@@ -161,8 +153,6 @@ functions:
   postExport:
     layers:
       - arn:aws:lambda:${self:provider.environment.REGION}:${self:provider.environment.ACCOUNT_ID}:layer:graasp-service-chrome:6
-      - arn:aws:lambda:${self:provider.environment.REGION}:${self:provider.environment.ACCOUNT_ID}:layer:nodeCanvasLayer:2
-      - arn:aws:lambda:${self:provider.environment.REGION}:${self:provider.environment.ACCOUNT_ID}:layer:canvasLib64Layer:1
     handler: dist/index.postExportWithSentry
     events:
       - http:
@@ -180,8 +170,6 @@ functions:
     timeout: 900
     layers:
       - arn:aws:lambda:${self:provider.environment.REGION}:${self:provider.environment.ACCOUNT_ID}:layer:graasp-service-chrome:6
-      - arn:aws:lambda:${self:provider.environment.REGION}:${self:provider.environment.ACCOUNT_ID}:layer:nodeCanvasLayer:2
-      - arn:aws:lambda:${self:provider.environment.REGION}:${self:provider.environment.ACCOUNT_ID}:layer:canvasLib64Layer:1
     events:
       - sns: export-${opt:stage}
     onError: arn:aws:sns:${self:provider.environment.REGION}:${self:provider.environment.ACCOUNT_ID}:dlq-${opt:stage}
@@ -189,8 +177,6 @@ functions:
   handleError:
     layers:
       - arn:aws:lambda:${self:provider.environment.REGION}:${self:provider.environment.ACCOUNT_ID}:layer:graasp-service-chrome:6
-      - arn:aws:lambda:${self:provider.environment.REGION}:${self:provider.environment.ACCOUNT_ID}:layer:nodeCanvasLayer:2
-      - arn:aws:lambda:${self:provider.environment.REGION}:${self:provider.environment.ACCOUNT_ID}:layer:canvasLib64Layer:1
     handler: dist/index.handleErrorWithSentry
     events:
       - sns: dlq-${opt:stage}
