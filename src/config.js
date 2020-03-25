@@ -88,9 +88,28 @@ Graasp (graasp.eu) is developed at the École Polytechnique Fédérale de Lausan
 `;
 export const PUBLISHER_DEFAULT = 'Graasp';
 
-export const BACKGROUND_COLOR = 'white';
-export const FONT = 'Arial';
-export const FONT_COLOR = 'black';
+export const COVER_PROPERTIES = {
+  BACKGROUND_COLOR: 'white',
+  FONT: 'Arial',
+  FONT_COLOR: 'black',
+  MARGIN_LEFT: 50,
+  MARGIN_TOP: 100,
+
+  // general text properties
+  FONT_SIZE: 20,
+  LINE_SPACING: 5,
+
+  // title properties
+  TITLE_FONT_SIZE: 60,
+  TITLE_MARGIN: 10,
+
+  // secondary title properties
+  SECONDARY_TITLE_FONT_SIZE: 40,
+
+  // image properties
+  IMAGE_MARGIN: 15,
+  IMAGE_HEIGHT: 350,
+};
 
 export const CSS_STYLES_FILE = path.join(__dirname, 'services/css/styles.css');
 

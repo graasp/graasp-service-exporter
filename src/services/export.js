@@ -6,6 +6,8 @@ import rimraf from 'rimraf';
 import request from 'request-promise-native';
 import cheerio from 'cheerio';
 import { XmlEntities } from 'html-entities';
+import dateFormat from 'dateformat';
+import { toRoman } from 'roman-numerals';
 import {
   GRAASP_HOST,
   GRAASP_VIEWER,
@@ -36,6 +38,7 @@ import {
   FRAMES_TIMEOUT,
   DEFAULT_BACK_COVER,
   TEXT_SEPARATOR,
+  COVER_PROPERTIES,
 } from '../config';
 import Logger from '../utils/Logger';
 import isLambda from '../utils/isLambda';
@@ -86,10 +89,7 @@ const s3 = new S3({
   endpoint: isLambda ? undefined : `http://localhost:${S3_PORT}`,
 });
 
-const generateRandomString = () =>
-  Math.random()
-    .toString(36)
-    .slice(2);
+const generateRandomString = () => Math.random().toString(36).slice(2);
 
 const exportLink = (origin, languageCode, id) => {
   return `${origin}/${languageCode}/pages/${id}/export`;
@@ -109,26 +109,42 @@ const instantiatePuppeteer = async () => {
   return browser;
 };
 
-const generateCover = async ({
-  background,
-  title,
-  author,
-  publisher = PUBLISHER_DEFAULT,
-  username = 'Anonymous',
-  sectionNumber = null,
-}) => {
+const generateCover = async (
+  page,
+  {
+    background,
+    title,
+    author,
+    publisher = PUBLISHER_DEFAULT,
+    username = 'Anonymous',
+    sectionNumber = null,
+  }
+) => {
   Logger.debug(`Generating cover image`);
 
   const path = `${TMP_FOLDER}/cover_${generateRandomString()}.jpg`;
 
   // @TODO refactor cover data (date, student name)
   const metadata = {
-    date: new Date(),
+    date: dateFormat(new Date(), 'mmmm d, yyyy'),
     username,
     publisher,
   };
   // we wait for the cover image because it loads asynchronously the bakground image file
-  await coverImage(background, title, author, sectionNumber, metadata, path);
+
+  const spaceData = {
+    background,
+    title,
+    author,
+    sectionNumber: sectionNumber ? toRoman(sectionNumber) : null,
+    metadata,
+  };
+
+  const dataUrl = await page.evaluate(coverImage, spaceData, COVER_PROPERTIES);
+  fs.writeFileSync(path, dataUrl, 'base64');
+
+  Logger.debug('Cover image saved');
+
   return path;
 };
 
@@ -152,7 +168,9 @@ const generateEpub = async ({
   };
 
   // make sure that all content sections have data
-  const content = sections.filter(section => section.title && section.content);
+  const content = sections.filter(
+    (section) => section.title && section.content
+  );
 
   // css styles
   const styles = fs.readFileSync(CSS_STYLES_FILE);
@@ -175,29 +193,29 @@ const generateEpub = async ({
         const stream = fs.createReadStream(output);
 
         const epub = [];
-        stream.on('data', chunk => epub.push(chunk));
+        stream.on('data', (chunk) => epub.push(chunk));
         stream.on('error', () => reject(new Error()));
         stream.on('end', () => {
           const rvalue = Buffer.concat(epub);
-          rimraf(output, error => {
+          rimraf(output, (error) => {
             Logger.debug(`info: deleting temporary epub ${output}`);
             if (error) {
               console.error(error);
             }
           });
-          screenshots.forEach(path => {
+          screenshots.forEach((path) => {
             if (fs.existsSync(path)) {
               Logger.debug(`info: deleting temporary screenshot ${path}`);
-              rimraf(path, error => {
+              rimraf(path, (error) => {
                 if (error) {
                   console.error(error);
                 }
               });
             }
           });
-          covers.forEach(path => {
+          covers.forEach((path) => {
             Logger.debug(`info: deleting temporary covers ${path}`);
-            rimraf(path, error => {
+            rimraf(path, (error) => {
               if (error) {
                 console.error(error);
               }
@@ -678,7 +696,7 @@ const retrievePhasesContent = async (page, mode) => {
 
     if (mode === MODE_INTERACTIVE_OFFLINE || mode === MODE_INTERACTIVE_ONLINE) {
       // decode & character because it was previously encoded when set to srcdoc attribute
-      body = body.map(phase => ({
+      body = body.map((phase) => ({
         title: phase.title,
         data: phase.data.replace(/&amp;(?=([1-9]|[a-zA-Z]){1,6};)/g, '&'),
       }));
@@ -699,7 +717,7 @@ const retrieveMetadata = async (page, baseUrl) => {
   let title = 'Untitled';
   try {
     await page.waitForSelector(SPACE_TITLE, { timeout: ELEMENTS_TIMEOUT });
-    title = await page.$eval(SPACE_TITLE, el => el.innerHTML);
+    title = await page.$eval(SPACE_TITLE, (el) => el.innerHTML);
   } catch (titleErr) {
     if (titleErr instanceof puppeteerErrors.TimeoutError) {
       Logger.debug('no title found');
@@ -725,7 +743,7 @@ const retrieveMetadata = async (page, baseUrl) => {
     });
     // todo: parse title in appropriate language
     introduction.title = 'Preface';
-    introduction.data = await page.$eval(INTRODUCTION, el => el.outerHTML);
+    introduction.data = await page.$eval(INTRODUCTION, (el) => el.outerHTML);
   } catch (error) {
     if (error instanceof puppeteerErrors.TimeoutError) {
       Logger.debug('no preface found');
@@ -750,7 +768,7 @@ const saveEpub = async (page, mode, lang, username, sectionNumber = null) => {
   );
 
   // generate cover
-  const coverPath = await generateCover({
+  const coverPath = await generateCover(page, {
     background,
     title,
     author,
@@ -812,7 +830,7 @@ const saveEpub = async (page, mode, lang, username, sectionNumber = null) => {
     });
     // todo: parse title in appropriate language
     tools.title = 'Tools';
-    tools.data = await page.$eval(TOOLS, el => el.innerHTML);
+    tools.data = await page.$eval(TOOLS, (el) => el.innerHTML);
   } catch (error) {
     if (error instanceof puppeteerErrors.TimeoutError) {
       Logger.debug('no tools found');
@@ -827,7 +845,7 @@ const saveEpub = async (page, mode, lang, username, sectionNumber = null) => {
 
   // concatenate introduction and body
   const content = [introduction, ...body, tools].filter(
-    chapter => chapter.data
+    (chapter) => chapter.data
   );
 
   const sections = [{ title, author, content, coverContent }];
@@ -882,7 +900,7 @@ const formatSpace = async (page, format, epubParams) => {
   }
 };
 
-const signIn = async page => {
+const signIn = async (page) => {
   return Promise.all([
     page.waitForNavigation({
       timeout: TIMEOUT,
@@ -892,7 +910,7 @@ const signIn = async page => {
   ]);
 };
 
-const signInViewer = async page => {
+const signInViewer = async (page) => {
   return Promise.all([
     page.waitForNavigation({
       timeout: TIMEOUT,
@@ -1077,7 +1095,7 @@ const handleMainSpace = async (
   const { background, title, author } = metadata;
 
   // generate main cover
-  const coverPath = await generateCover({
+  const coverPath = await generateCover(mainPage, {
     background,
     title,
     author,
@@ -1126,7 +1144,7 @@ const convertSpaceToFile = async (id, body, headers) => {
     if (spaceIds.length) {
       Logger.debug('scraping multiple spaces for epub');
 
-      const spaceUrls = spaceIds.map(spaceId =>
+      const spaceUrls = spaceIds.map((spaceId) =>
         exportLink(origin, languageCode, spaceId)
       );
 
@@ -1155,31 +1173,29 @@ const convertSpaceToFile = async (id, body, headers) => {
       );
 
       params = await Promise.all([mainSpacePromise, ...subspacesPromises]).then(
-        spacesParams => {
+        (spacesParams) => {
           const mainPageMetadata = spacesParams.shift();
 
           // merge spaces' content
-          let allSections = spacesParams.map(param => param.sections);
+          let allSections = spacesParams.map((param) => param.sections);
           allSections = Array.prototype.concat.apply([], allSections);
 
           const allCovers = spacesParams
-            .map(param => param.coverPath)
-            .filter(cover => cover != null);
+            .map((param) => param.coverPath)
+            .filter((cover) => cover != null);
 
           // merge back covers content
           const allBackCovers = {
             data: spacesParams
-              .map(param => param.backCover.data)
+              .map((param) => param.backCover.data)
               .join(TEXT_SEPARATOR),
           };
           // add main space description in back cover
           if (mainPageMetadata.introduction.data) {
-            allBackCovers.data = `${
-              mainPageMetadata.introduction.data
-            }${TEXT_SEPARATOR}${allBackCovers.data}`;
+            allBackCovers.data = `${mainPageMetadata.introduction.data}${TEXT_SEPARATOR}${allBackCovers.data}`;
           }
 
-          let allScreenshots = spacesParams.map(param => param.screenshots);
+          let allScreenshots = spacesParams.map((param) => param.screenshots);
           allScreenshots = Array.prototype.concat.apply([], allScreenshots);
 
           return {
@@ -1212,9 +1228,7 @@ const convertSpaceToFile = async (id, body, headers) => {
     }
 
     // add default back cover info
-    params.backCover.data = `${
-      params.backCover.data
-    }${TEXT_SEPARATOR}${DEFAULT_BACK_COVER}`;
+    params.backCover.data = `${params.backCover.data}${TEXT_SEPARATOR}${DEFAULT_BACK_COVER}`;
   } else {
     // export to pdf, png
     Logger.debug('scraping single space for pdf, png');
@@ -1253,7 +1267,7 @@ const upload = (file, fileId) => {
   });
 };
 
-const isReady = fileId =>
+const isReady = (fileId) =>
   new Promise((resolve, reject) => {
     const params = {
       Bucket: S3_BUCKET,
@@ -1274,7 +1288,7 @@ const isReady = fileId =>
     });
   });
 
-const getFileAsString = async fileId => {
+const getFileAsString = async (fileId) => {
   const params = {
     Bucket: S3_BUCKET,
     Key: fileId,
