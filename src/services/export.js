@@ -1016,7 +1016,7 @@ const puppeteerLogin = async (
 
   // wait three more seconds just in case, mainly to wait for iframes and apps to load
   const nbFrames = page.mainFrame().childFrames().length;
-  const waitingTime = 3000 + nbFrames * FRAMES_TIMEOUT;
+  const waitingTime = 5000 + nbFrames * FRAMES_TIMEOUT;
   Logger.debug(`waiting for ${waitingTime}ms`);
   await page.waitFor(waitingTime);
   return page;
